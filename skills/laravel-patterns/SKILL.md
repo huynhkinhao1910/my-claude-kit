@@ -2,7 +2,8 @@
 name: laravel-patterns
 description: >-
   House style for Laravel REST APIs (SPA/mobile clients): FormRequest -> Controller -> Service -> Repository -> Model,
-  the success/message/data/errors envelope wrapping API Resources, central exception rendering, /api/v1 routes,
+  responses per the api-design contract (the project's existing format, or data/paging/meta for a new project)
+  built from API Resources, central exception rendering, /api/v1 routes,
   Sanctum, RabbitMQ queues and Redis cache. Use when writing or refactoring controllers, routes, services,
   repositories, Eloquent models or queries, migrations, form requests, resources, jobs or caching in a Laravel
   codebase. Trigger on requests like "tạo controller", "viết API", "thêm endpoint", "sửa model", "thêm migration",
@@ -28,7 +29,7 @@ Every request goes through the same five layers, and each layer has one job:
 ```
 Request ─▶ FormRequest ─▶ Controller ─▶ Service ─▶ Repository ─▶ Model
            validate        HTTP only      business    queries       schema,
-           + authorize     + envelope     rules, tx   only          casts, relations
+           + authorize     + response     rules, tx   only          casts, relations
                               ▲
                               └── API Resource shapes the output
 ```
@@ -36,7 +37,7 @@ Request ─▶ FormRequest ─▶ Controller ─▶ Service ─▶ Repository �
 | Layer | Owns | Never does |
 |-------|------|------------|
 | FormRequest | `rules()`, `authorize()`, input normalisation | business rules, queries beyond `exists`/`unique` rules |
-| Controller | call one service method, wrap the result in `ApiResponse` | queries, `DB::`, `try/catch`, business `if`s |
+| Controller | call one service method, return it through the project's response helper (`ApiResponse` in new projects) | queries, `DB::`, `try/catch`, business `if`s |
 | Service | business rules, `DB::transaction`, dispatching jobs/events, cache invalidation | `Model::where()`/`query()`, building HTTP responses |
 | Repository | every Eloquent query, eager loading, locking, pagination | business decisions, transactions, HTTP |
 | Model | `$fillable`, `$casts`, relations, scopes | queries called from outside a repository |
@@ -44,8 +45,8 @@ Request ─▶ FormRequest ─▶ Controller ─▶ Service ─▶ Repository �
 Rules that apply across layers:
 
 1. Input reaches a service as `$request->validated()` (a plain array). Never pass the `Request` object down.
-2. Every response is `ApiResponse::success|paginated|error(...)`. Never return a `JsonResource` or `response()->json()` directly.
-3. Errors are thrown, not returned: throw `BusinessException` (or let Laravel throw), and the exception handler renders the envelope.
+2. Every response uses the project's API format (`api-design`, Step 0). In an **existing project**, reuse its helper and shape. In a **new project**, use `ApiResponse` (`data` + `paging` for lists + `meta`). Never hand-build `response()->json()` in a controller.
+3. Errors are thrown, not returned: throw `BusinessException` (or let Laravel throw), and the exception handler renders them in the project's format.
 4. Repositories are concrete classes injected by the container. They have no interface and no binding.
 5. Transactions live in services. Jobs and events dispatched inside a transaction use `afterCommit()`.
 6. Routes live under `/api/v1`, and controllers under `App\Http\Controllers\Api\V1`.
@@ -58,7 +59,7 @@ Rules that apply across layers:
 app/
 ├── Exceptions/
 │   ├── BusinessException.php
-│   └── Handler.php                 # renders every API error as the envelope
+│   └── Handler.php                 # renders every API error in the project's format
 ├── Http/
 │   ├── Controllers/Api/V1/
 │   ├── Requests/Api/V1/            # StoreOrderRequest, IndexOrderRequest
@@ -68,70 +69,22 @@ app/
 ├── Policies/
 ├── Repositories/                   # OrderRepository (concrete, no interface)
 ├── Services/                       # OrderService
-└── Support/ApiResponse.php
+└── Support/ApiResponse.php         # new projects; existing ones keep their helper
 routes/api.php                      # Route::prefix('v1')
 tests/Feature/Api/V1/
 ```
 
-### Envelope: `App\Support\ApiResponse`
+### Response format
 
-Every response has the same four keys. Paginated lists add `meta`.
+Follow `api-design`:
 
-```php
-<?php
-
-namespace App\Support;
-
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Http\Resources\Json\ResourceCollection;
-
-final class ApiResponse
-{
-    public static function success(mixed $data = null, string $message = 'OK', int $status = 200): JsonResponse
-    {
-        return response()->json([
-            'success' => true,
-            'message' => $message,
-            'data' => $data instanceof JsonResource ? $data->resolve(request()) : $data,
-            'errors' => null,
-        ], $status);
-    }
-
-    /** @param ResourceCollection $collection built from a LengthAwarePaginator */
-    public static function paginated(ResourceCollection $collection, string $message = 'OK'): JsonResponse
-    {
-        $page = $collection->resource;
-
-        return response()->json([
-            'success' => true,
-            'message' => $message,
-            'data' => $collection->resolve(request()),
-            'meta' => [
-                'current_page' => $page->currentPage(),
-                'per_page' => $page->perPage(),
-                'total' => $page->total(),
-                'last_page' => $page->lastPage(),
-            ],
-            'errors' => null,
-        ]);
-    }
-
-    public static function error(string $message, int $status, ?array $errors = null): JsonResponse
-    {
-        return response()->json([
-            'success' => false,
-            'message' => $message,
-            'data' => null,
-            'errors' => $errors,
-        ], $status);
-    }
-}
-```
+- **Existing project:** detect the format first (Step 0). Grep for the helper, read two endpoints and their tests, and reuse exactly that helper and shape. The examples below use `ApiResponse`. Swap in the project's own helper and keep everything else.
+- **New project:** copy `ApiResponse` from `api-design` into `app/Support/ApiResponse.php`. It produces:
 
 ```json
-{ "success": true,  "message": "Order created", "data": { "id": 12, "status": "pending" }, "errors": null }
-{ "success": false, "message": "Validation failed", "data": null, "errors": { "quantity": ["The quantity field is required."] } }
+{ "data": { "id": 12, "status": "pending" }, "meta": { "message": "Order created", "request_id": "01J9ZC4K2T" } }
+{ "data": [ ... ], "paging": { "current_page": 1, "per_page": 20, "total": 42, "last_page": 3 }, "meta": { "message": "OK", "request_id": "01J9ZC4K2T" } }
+{ "data": null, "meta": { "message": "Validation failed", "code": "validation_failed", "errors": { "quantity": ["The quantity field is required."] }, "request_id": "01J9ZC4K2T" } }
 ```
 
 ### Routes
@@ -251,7 +204,7 @@ final class OrderService
             $product = $this->products->findForUpdate($data['product_id']);
 
             if ($product->stock < $data['quantity']) {
-                throw new BusinessException('Not enough stock', 422, ['quantity' => ['Only '.$product->stock.' left.']]);
+                throw new BusinessException('Not enough stock', 422, 'insufficient_stock', ['quantity' => ['Only '.$product->stock.' left.']]);
             }
 
             $this->products->decrementStock($product, $data['quantity']);
@@ -378,6 +331,7 @@ final class BusinessException extends RuntimeException
     public function __construct(
         string $message,
         private readonly int $status = 422,
+        private readonly string $errorCode = 'business_rule_violated',
         private readonly ?array $errors = null,
         ?Throwable $previous = null,
     ) {
@@ -385,20 +339,21 @@ final class BusinessException extends RuntimeException
     }
 
     public function status(): int { return $this->status; }
+    public function errorCode(): string { return $this->errorCode; }
     public function errors(): ?array { return $this->errors; }
 }
 ```
 
-The Handler maps every exception on `api/*` to the envelope. See `references/exceptions.md` for the full Laravel 10 `Handler` and the Laravel 11+ `bootstrap/app.php` versions.
+The Handler maps every exception on `api/*` to the project's error format (new projects: `data: null` + `meta.message/code[/errors]`). See `references/exceptions.md` for the full Laravel 10 `Handler` and the Laravel 11+ `bootstrap/app.php` versions.
 
-| Exception | Status | `errors` |
+| Exception | Status | `meta.code` (new projects) |
 |-----------|--------|----------|
-| `ValidationException` | 422 | field → messages |
-| `AuthenticationException` | 401 | null |
-| `AuthorizationException` / `AccessDeniedHttpException` | 403 | null |
-| `ModelNotFoundException` / `NotFoundHttpException` | 404 | null |
-| `BusinessException` | its own status | its own errors |
-| anything else | 500 | null; generic message unless `app.debug` |
+| `ValidationException` | 422 | `validation_failed` (+ `meta.errors`) |
+| `AuthenticationException` | 401 | `unauthenticated` |
+| `AuthorizationException` / `AccessDeniedHttpException` | 403 | `forbidden` |
+| `ModelNotFoundException` / `NotFoundHttpException` | 404 | `not_found` |
+| `BusinessException` | its own status | its own `errorCode()` |
+| anything else | 500 | `server_error`; generic message unless `app.debug` |
 
 ### Models and migrations
 
@@ -436,11 +391,11 @@ See `references/rabbitmq-queues.md` for connection config, workers, dead-letteri
 
 ### Checklist before finishing a change
 
-- [ ] Controller contains only a service call plus `ApiResponse`
+- [ ] Controller contains only a service call plus the project's response helper
 - [ ] No `Model::` or `->query()` calls outside `app/Repositories` (route model binding excepted)
 - [ ] Multi-write paths wrapped in `DB::transaction` inside the service; jobs use `afterCommit()`
 - [ ] New inputs validated in a FormRequest; service receives `validated()`
-- [ ] Response goes through `ApiResponse`; lists are paginated with a capped `per_page`
+- [ ] Response matches the project's format (`api-design` Step 0), or `data`/`paging`/`meta` in a new project; lists paginated with a capped `per_page`
 - [ ] Errors thrown, not caught and re-shaped in controllers
 - [ ] Feature test covers success, 422, 401/403 and 404 paths (`laravel-tdd`)
 - [ ] `vendor/bin/pint --test` passes

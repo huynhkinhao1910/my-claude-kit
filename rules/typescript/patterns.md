@@ -11,16 +11,29 @@ paths:
 
 ## API Response Format
 
+Existing project: reuse its response types. New project (`api-design`):
+
 ```typescript
+interface Paging {
+  current_page?: number
+  per_page: number
+  total?: number
+  last_page?: number
+  next_cursor?: string | null
+  has_more?: boolean
+}
+
+interface Meta {
+  message: string
+  request_id: string
+  code?: string                       // errors only
+  errors?: Record<string, string[]>   // validation errors only
+}
+
 interface ApiResponse<T> {
-  success: boolean
-  data?: T
-  error?: string
-  meta?: {
-    total: number
-    page: number
-    limit: number
-  }
+  data: T | null
+  paging?: Paging                     // lists only
+  meta: Meta
 }
 ```
 

@@ -8,7 +8,7 @@ Agent frontmatter uses the aliases `opus`, `sonnet` and `haiku`, which resolve t
 |-------|---------|------------|
 | `opus` | Ambiguity and judgment: requirements, planning, architecture, security, Laravel correctness review | requirement-analyst, planner, laravel-reviewer, security-reviewer |
 | `sonnet` | Pattern-following work: implementation, tests, language review, docs | implementer, test-writer, go/typescript/vue/react reviewers, doc-writer |
-| `haiku` | Mechanical, high-frequency work | continuous-learning observer |
+| `haiku` | Mechanical, high-frequency work | commit-message-writer, continuous-learning observer |
 
 Pick the cheapest tier that does the job well, and move up a tier only when the output is wrong, not just slow.
 

@@ -17,15 +17,13 @@ When implementing new functionality:
 ### Repository Pattern
 
 Encapsulate data access behind a consistent interface:
-- Define standard operations: findAll, findById, create, update, delete
-- Concrete implementations handle storage details (database, API, file, etc.)
-- Business logic depends on the abstract interface, not the storage mechanism
-- Enables easy swapping of data sources and simplifies testing with mocks
+- Repositories own every query; services own business rules and transactions
+- Name methods for what the caller needs (`paginateForUser`, `findForUpdate`) rather than generic CRUD
+- Laravel house style: repositories are concrete classes with no interface (`laravel-patterns`)
+- Test against the real database; mock only what sits outside the app
 
 ### API Response Format
 
-Use a consistent envelope for all API responses:
-- Include a success/status indicator
-- Include the data payload (nullable on error)
-- Include an error message field (nullable on success)
-- Include metadata for paginated responses (total, page, limit)
+Follow the `api-design` skill:
+- Existing project: detect the response format it already uses and follow it exactly. Never add a second format.
+- New project: `data` + `paging` (lists only) + `meta` (`message`, `request_id`). Errors: `data: null` + `meta.message`, `meta.code`, `meta.errors` (validation only).

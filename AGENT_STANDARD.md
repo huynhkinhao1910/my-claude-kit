@@ -45,10 +45,12 @@ Rules:
 |---|---|---|---|
 | Spec | requirement-analyst | opus | docs only |
 | Explore | code-explorer | sonnet | no |
-| Plan | planner (feature plan) / architect (system decisions, ADR) | opus | docs only |
+| Plan | planner | opus | docs only |
 | Implement | test-writer → implementer | sonnet | yes |
-| Fix build | build-error-resolver, go-build-resolver | sonnet | yes |
-| Review | laravel-reviewer, typescript-reviewer, go-reviewer, python-reviewer, code-reviewer (fallback), security-reviewer, database-reviewer, silent-failure-hunter | opus/sonnet | no |
+| Fix build | build-error-resolver, go-build-resolver, react-build-resolver | sonnet | yes |
+| Review | laravel-reviewer, security-reviewer, scalability-reviewer (opus); typescript-reviewer, vue-reviewer, react-reviewer, go-reviewer, python-reviewer, database-reviewer, silent-failure-hunter, code-reviewer (fallback) (sonnet) | opus/sonnet | no |
 | Verify | spec-verifier | sonnet | no |
-| Ship | doc-writer, commit-message-writer | sonnet | docs only |
-| Maintenance | refactor-cleaner | sonnet | yes |
+| E2E | e2e-runner | sonnet | tests only |
+| Ship | doc-writer (sonnet), commit-message-writer (haiku) | sonnet/haiku | docs only |
+
+Every agent in this table must exist in `agents/`. `lint.py` fails on any reference to a missing agent or skill. Update this table in the same change that adds or removes an agent.

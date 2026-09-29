@@ -79,7 +79,7 @@ RateLimiter::for('login', fn (Request $r) => [
 
 **Go:** `golang.org/x/time/rate` for per-process limits, and a Redis sliding window (`INCR` + `EXPIRE`, or `redis_rate`) for limits shared across nodes.
 
-Always return `429` in the envelope, with a `Retry-After` header.
+Always return `429` in the project's error format (new projects: `meta.code = rate_limited`), with a `Retry-After` header.
 
 ## 5. Idempotency keys for client retries
 
@@ -105,11 +105,11 @@ final class Idempotency
 
         if ($stored = Cache::get($cacheKey)) {
             return $stored === 'pending'
-                ? ApiResponse::error('Request already in progress', 409)
+                ? ApiResponse::error('Request already in progress', 409, 'request_in_progress')
                 : response()->json($stored['body'], $stored['status']);
         }
         if (! Cache::add($cacheKey, 'pending', now()->addDay())) {
-            return ApiResponse::error('Request already in progress', 409);
+            return ApiResponse::error('Request already in progress', 409, 'request_in_progress');
         }
 
         $response = $next($request);

@@ -177,7 +177,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 }
 ```
 
-- Keep one consistent error envelope across the API.
+- Keep one response and error format across the API, as defined by `api-design`: the project's existing format, or `data`/`paging`/`meta` via a global `ResponseInterceptor` + `AllExceptionsFilter` in a new project.
 - Throw framework exceptions for expected client errors; log and wrap unexpected failures centrally.
 
 ## Config and Environment Validation

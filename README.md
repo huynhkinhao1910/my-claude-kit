@@ -68,7 +68,7 @@ The Laravel skills and `laravel-reviewer` encode one set of decisions instead of
 | App type | REST API for SPA/mobile clients |
 | Layers | FormRequest → Controller → Service → Repository (concrete class, no interface) → Model |
 | Service input | `$request->validated()` array |
-| Responses | `ApiResponse` envelope `{success, message, data, errors}` wrapping API Resources; lists add `meta` |
+| Responses | Per `api-design`: an existing project keeps its format; a new project uses `{data, paging (lists), meta}` with errors as `data: null` + `meta.message/code/errors` |
 | Errors | `BusinessException` + central handler; no `try/catch` in controllers |
 | Routes | `/api/v1`, controllers in `Api\V1` |
 | Auth | Sanctum: SPA cookie or personal access token |
@@ -77,7 +77,7 @@ The Laravel skills and `laravel-reviewer` encode one set of decisions instead of
 | Formatting | Pint |
 | Git | `main` only, `feature/*` branches, merged through an MR |
 
-`laravel-reviewer` treats any break of a layer or envelope rule as MAJOR. A project can override a single rule in its own `CLAUDE.md`.
+`laravel-reviewer` treats any break of a layer or API-format rule as MAJOR. A project can override a single rule in its own `CLAUDE.md`.
 
 ### Scalability
 
@@ -113,11 +113,12 @@ The observer is **off by default**. To turn it on, set `observer.enabled: true` 
 | `/go-review` | ecc |
 | `/vue-review`, `/react-review`, `/react-build`, `/react-test` | ecc |
 
-### Skills (39)
+### Skills (38)
 
 - Laravel: `laravel-patterns`, `laravel-security`, `laravel-tdd`, `laravel-verification`, `laravel-plugin-discovery`
 - Go: `golang-patterns`, `golang-testing`
-- TypeScript/Node: `nestjs-patterns` (ecc), `backend-patterns`, `api-design`, `e2e-testing`
+- API contract: `api-design` (own). It detects and follows an existing project's format, and gives new projects `data` + `paging` + `meta`
+- TypeScript/Node: `nestjs-patterns` (ecc), `e2e-testing`
 - Data: `mysql-patterns`, `redis-patterns` (ecc)
 - Front end, Vue: `vue-patterns`, `nuxt4-patterns`, `ui-to-vue`
 - Front end, React: `react-patterns`, `react-performance`, `react-testing`, `nextjs-turbopack`

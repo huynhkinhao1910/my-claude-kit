@@ -1,523 +1,332 @@
 ---
 name: api-design
-description: REST API design patterns including resource naming, status codes, pagination, filtering, error responses, versioning, and rate limiting for production APIs.
+description: >-
+  The API contract for every REST API in the kit (Laravel, NestJS, Go). In an existing project, detect the
+  response format it already uses and follow it exactly. In a new project, use the default contract:
+  data + paging (lists only) + meta, with errors as data null plus meta.message, meta.code and meta.errors. Also covers
+  resource naming, HTTP methods, status codes, error codes, offset and keyset pagination, filtering, sorting, rate-limit
+  headers and /api/v1 versioning. Use when adding or changing an endpoint, designing a response, reviewing an API
+  contract, or when asked "format response", "chuẩn hoá API", "thiết kế API". Do NOT use for GraphQL, gRPC or
+  front-end data fetching.
 origin: My Claude Kit
 ---
 
-# API Design Patterns
+# API Contract
 
-Conventions and best practices for designing consistent, developer-friendly REST APIs.
+One project has one response format. The format is **discovered, not invented**: an existing project keeps the format it already has, and only a brand-new project gets the default below.
 
-## When to Activate
+## When to Use
 
-- Designing new API endpoints
-- Reviewing existing API contracts
-- Adding pagination, filtering, or sorting
-- Implementing error handling for APIs
-- Planning API versioning strategy
-- Building public or partner-facing APIs
+- Adding or changing any endpoint
+- Writing the response helper, exception rendering or pagination for a new project
+- Reviewing a diff that touches responses, errors or pagination
+- A client (SPA, mobile) reports an inconsistent response
+
+## How It Works
+
+### Step 0 — Existing project? Detect and follow its format
+
+Before writing any response code, find out what the project already returns:
+
+1. **Find the helper.**
+   - Laravel: `grep -rnE "ApiResponse|ResponseTrait|sendResponse|respondWith|->json\(" app/Http app/Support app/Traits`
+   - NestJS: `grep -rnE "Interceptor|ExceptionFilter|class .*Response" src`
+   - Go: `grep -rnE "func (write|respond|render)JSON|func .*Error\(w" .`
+2. **Read 2–3 existing endpoints and their tests** (or the OpenAPI/Postman collection). Capture: the success shape, the list/pagination shape, the error shape, the validation-error shape, key casing (`snake_case` vs `camelCase`) and the date format.
+3. **Write it down.** If the project `CLAUDE.md` has no "API contract" section, propose one with the captured shapes, so the next session does not have to rediscover it.
+4. **Follow it exactly**, even where it differs from the default below. Reuse the project's helper, and never add a second helper next to it.
+5. **Mixed formats inside one project:** follow the format of the module you are in (or the newest `/api/vN`), and report the inconsistency. Never introduce a third format.
+6. **Changing an existing format is a breaking change.** It happens only under a new version (`/api/v2`), with the client teams agreeing to it.
+
+Only when there is no existing API (a new project, or a new service) does the default contract apply.
+
+### Default contract for new projects
+
+**Top-level keys:** `data`, `paging` (lists only), `meta`. Nothing else at the top level.
+
+| Response | `data` | `paging` | `meta` |
+|----------|--------|----------|--------|
+| Single resource / action result | object | absent | `message`, `request_id` |
+| List | array | present | `message`, `request_id` |
+| No content (DELETE) | — | — | — (HTTP 204, empty body) |
+| Error (any 4xx/5xx) | `null` | absent | `message`, `code`, `errors` (validation only), `request_id` |
+
+```json
+// 200 — list (offset paging)
+{
+  "data": [{ "id": 1, "status": "pending" }],
+  "paging": { "current_page": 1, "per_page": 20, "total": 42, "last_page": 3 },
+  "meta": { "message": "OK", "request_id": "01J9ZC4K2T" }
+}
+
+// 200 — list (keyset paging, for feeds and large tables)
+{
+  "data": [{ "id": 981, "status": "paid" }],
+  "paging": { "per_page": 20, "next_cursor": "961", "has_more": true },
+  "meta": { "message": "OK", "request_id": "01J9ZC4K2T" }
+}
+
+// 201 — created
+{
+  "data": { "id": 12, "status": "pending", "created_at": "2026-09-29T10:30:00+07:00" },
+  "meta": { "message": "Order created", "request_id": "01J9ZC4K2T" }
+}
+
+// 422 — validation error
+{
+  "data": null,
+  "meta": {
+    "message": "Validation failed",
+    "code": "validation_failed",
+    "errors": { "quantity": ["The quantity field is required."] },
+    "request_id": "01J9ZC4K2T"
+  }
+}
+
+// 409 — business rule error
+{
+  "data": null,
+  "meta": { "message": "Order already paid", "code": "order_already_paid", "request_id": "01J9ZC4K2T" }
+}
+```
+
+Rules:
+- **Keys are `snake_case`** in new projects, both in payloads and in `paging`/`meta`.
+- **`meta.message`** is short and human-readable. It is safe to show, and never contains stack traces, SQL or class names.
+- **`meta.code`** is a stable, machine-readable `snake_case` string that clients switch on. Never change a published code.
+- **`meta.errors`** exists only for validation errors, as `field → [messages]`. Nested fields use dot keys (`items.0.quantity`).
+- **`meta.request_id`** echoes the `X-Request-Id` request header, or a generated one. It is also returned as a response header and written into every log line.
+- **Dates** are ISO-8601 with an offset. **Money** is an integer in minor units (or a decimal string), never a float. **IDs** are serialised the same way everywhere.
+- **Don't add top-level keys** like `success` or `status`. The HTTP status code carries success or failure.
+
+### Standard error codes
+
+| HTTP | `meta.code` | When |
+|------|-------------|------|
+| 400 | `bad_request` | Malformed JSON, or a wrong content type |
+| 401 | `unauthenticated` | Missing or invalid token/session |
+| 403 | `forbidden` | Authenticated but not allowed |
+| 404 | `not_found` | Resource doesn't exist, or is not visible to this user |
+| 405 | `method_not_allowed` | Wrong verb |
+| 409 | `<domain>_conflict` or a specific code (`order_already_paid`) | State conflict, duplicate |
+| 422 | `validation_failed` | Field validation (with `errors`) |
+| 422 | a specific business code (`insufficient_stock`) | A business rule violated by valid input |
+| 429 | `rate_limited` | Too many requests (plus a `Retry-After` header) |
+| 500 | `server_error` | Unexpected failure; generic message |
+| 503 | `service_unavailable` | Dependency down or maintenance (plus `Retry-After`) |
+
+## Examples
+
+### Laravel — `App\Support\ApiResponse` (new projects)
+
+```php
+<?php
+
+namespace App\Support;
+
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\Resources\Json\ResourceCollection;
+
+final class ApiResponse
+{
+    public static function success(mixed $data = null, string $message = 'OK', int $status = 200): JsonResponse
+    {
+        return response()->json([
+            'data' => $data instanceof JsonResource ? $data->resolve(request()) : $data,
+            'meta' => self::meta($message),
+        ], $status);
+    }
+
+    /** @param ResourceCollection $collection built from a LengthAwarePaginator */
+    public static function paginated(ResourceCollection $collection, string $message = 'OK'): JsonResponse
+    {
+        $page = $collection->resource;
+
+        return response()->json([
+            'data' => $collection->resolve(request()),
+            'paging' => [
+                'current_page' => $page->currentPage(),
+                'per_page' => $page->perPage(),
+                'total' => $page->total(),
+                'last_page' => $page->lastPage(),
+            ],
+            'meta' => self::meta($message),
+        ]);
+    }
+
+    public static function cursor(ResourceCollection $collection, ?string $nextCursor, int $perPage, string $message = 'OK'): JsonResponse
+    {
+        return response()->json([
+            'data' => $collection->resolve(request()),
+            'paging' => ['per_page' => $perPage, 'next_cursor' => $nextCursor, 'has_more' => $nextCursor !== null],
+            'meta' => self::meta($message),
+        ]);
+    }
+
+    public static function error(string $message, int $status, string $code, ?array $errors = null): JsonResponse
+    {
+        $meta = ['message' => $message, 'code' => $code];
+        if ($errors !== null) {
+            $meta['errors'] = $errors;
+        }
+
+        return response()->json(['data' => null, 'meta' => $meta + ['request_id' => self::requestId()]], $status);
+    }
+
+    private static function meta(string $message): array
+    {
+        return ['message' => $message, 'request_id' => self::requestId()];
+    }
+
+    private static function requestId(): string
+    {
+        return (string) (request()->headers->get('X-Request-Id') ?? request()->attributes->get('request_id', ''));
+    }
+}
+```
+
+A small `AssignRequestId` middleware sets `request_id` (from `X-Request-Id` or `Str::ulid()`), adds it to the log context (`Log::withContext`), and returns it as the `X-Request-Id` response header. Exception rendering: `laravel-patterns/references/exceptions.md`.
+
+### NestJS — interceptor + exception filter (new projects)
+
+```ts
+// common/http/response.interceptor.ts
+@Injectable()
+export class ResponseInterceptor implements NestInterceptor {
+  intercept(ctx: ExecutionContext, next: CallHandler): Observable<unknown> {
+    const req = ctx.switchToHttp().getRequest();
+    return next.handle().pipe(
+      map((body: { data: unknown; paging?: Paging; message?: string }) => ({
+        data: body.data,
+        ...(body.paging ? { paging: body.paging } : {}),
+        meta: { message: body.message ?? 'OK', request_id: req.id },
+      })),
+    );
+  }
+}
+
+// common/http/all-exceptions.filter.ts
+@Catch()
+export class AllExceptionsFilter implements ExceptionFilter {
+  catch(e: unknown, host: ArgumentsHost) {
+    const http = host.switchToHttp();
+    const req = http.getRequest();
+    const { status, code, message, errors } = toApiError(e); // maps HttpException, ValidationError, BusinessError, unknown -> 500
+    http.getResponse().status(status).json({
+      data: null,
+      meta: { message, code, ...(errors ? { errors } : {}), request_id: req.id },
+    });
+  }
+}
+```
+
+Services return `{ data, paging? , message? }`. Controllers never build the envelope by hand. Configure `ValidationPipe` with an `exceptionFactory` that produces `field → [messages]`.
+
+### Go — `writeData` / `writeList` / `writeError` (new projects)
+
+```go
+type Meta struct {
+	Message   string              `json:"message"`
+	Code      string              `json:"code,omitempty"`
+	Errors    map[string][]string `json:"errors,omitempty"`
+	RequestID string              `json:"request_id"`
+}
+
+type Paging struct {
+	CurrentPage int    `json:"current_page,omitempty"`
+	PerPage     int    `json:"per_page"`
+	Total       int64  `json:"total,omitempty"`
+	LastPage    int    `json:"last_page,omitempty"`
+	NextCursor  string `json:"next_cursor,omitempty"`
+	HasMore     *bool  `json:"has_more,omitempty"`
+}
+
+type envelope struct {
+	Data   any     `json:"data"`
+	Paging *Paging `json:"paging,omitempty"`
+	Meta   Meta    `json:"meta"`
+}
+
+func writeData(w http.ResponseWriter, r *http.Request, status int, data any, msg string) {
+	writeJSON(w, status, envelope{Data: data, Meta: Meta{Message: msg, RequestID: requestID(r)}})
+}
+
+func writeList(w http.ResponseWriter, r *http.Request, data any, p Paging) {
+	writeJSON(w, http.StatusOK, envelope{Data: data, Paging: &p, Meta: Meta{Message: "OK", RequestID: requestID(r)}})
+}
+
+func writeError(w http.ResponseWriter, r *http.Request, status int, code, msg string, fields map[string][]string) {
+	writeJSON(w, status, envelope{Data: nil, Meta: Meta{Message: msg, Code: code, Errors: fields, RequestID: requestID(r)}})
+}
+```
 
 ## Resource Design
 
-### URL Structure
-
 ```
-# Resources are nouns, plural, lowercase, kebab-case
-GET    /api/v1/users
-GET    /api/v1/users/:id
-POST   /api/v1/users
-PUT    /api/v1/users/:id
-PATCH  /api/v1/users/:id
-DELETE /api/v1/users/:id
-
-# Sub-resources for relationships
-GET    /api/v1/users/:id/orders
-POST   /api/v1/users/:id/orders
-
-# Actions that don't map to CRUD (use verbs sparingly)
-POST   /api/v1/orders/:id/cancel
-POST   /api/v1/auth/login
-POST   /api/v1/auth/refresh
+GET    /api/v1/orders              list (paged)
+GET    /api/v1/orders/{id}         detail
+POST   /api/v1/orders              create           → 201 + Location
+PATCH  /api/v1/orders/{id}         partial update   → 200
+DELETE /api/v1/orders/{id}         delete           → 204
+GET    /api/v1/users/{id}/orders   sub-resource (ownership)
+POST   /api/v1/orders/{id}/cancel  action that is not CRUD (verbs sparingly)
 ```
 
-### Naming Rules
+- Resources are plural nouns in kebab-case (`/team-members`): no verbs in paths, no `snake_case` paths.
+- `PUT` only for a genuine full replacement. `PATCH` for partial updates.
+- `GET` never changes state. `DELETE` and `PUT` are idempotent. Make `POST` creates safe to retry with an `Idempotency-Key` (`scalability/references/resilience.md`).
 
-```
-# GOOD
-/api/v1/team-members          # kebab-case for multi-word resources
-/api/v1/orders?status=active  # query params for filtering
-/api/v1/users/123/orders      # nested resources for ownership
+## Status Codes
 
-# BAD
-/api/v1/getUsers              # verb in URL
-/api/v1/user                  # singular (use plural)
-/api/v1/team_members          # snake_case in URLs
-/api/v1/users/123/getOrders   # verb in nested resource
-```
-
-## HTTP Methods and Status Codes
-
-### Method Semantics
-
-| Method | Idempotent | Safe | Use For |
-|--------|-----------|------|---------|
-| GET | Yes | Yes | Retrieve resources |
-| POST | No | No | Create resources, trigger actions |
-| PUT | Yes | No | Full replacement of a resource |
-| PATCH | No* | No | Partial update of a resource |
-| DELETE | Yes | No | Remove a resource |
-
-*PATCH can be made idempotent with proper implementation
-
-### Status Code Reference
-
-```
-# Success
-200 OK                    — GET, PUT, PATCH (with response body)
-201 Created               — POST (include Location header)
-204 No Content            — DELETE, PUT (no response body)
-
-# Client Errors
-400 Bad Request           — Validation failure, malformed JSON
-401 Unauthorized          — Missing or invalid authentication
-403 Forbidden             — Authenticated but not authorized
-404 Not Found             — Resource doesn't exist
-409 Conflict              — Duplicate entry, state conflict
-422 Unprocessable Entity  — Semantically invalid (valid JSON, bad data)
-429 Too Many Requests     — Rate limit exceeded
-
-# Server Errors
-500 Internal Server Error — Unexpected failure (never expose details)
-502 Bad Gateway           — Upstream service failed
-503 Service Unavailable   — Temporary overload, include Retry-After
-```
-
-### Common Mistakes
-
-```
-# BAD: 200 for everything
-{ "status": 200, "success": false, "error": "Not found" }
-
-# GOOD: Use HTTP status codes semantically
-HTTP/1.1 404 Not Found
-{ "error": { "code": "not_found", "message": "User not found" } }
-
-# BAD: 500 for validation errors
-# GOOD: 400 or 422 with field-level details
-
-# BAD: 200 for created resources
-# GOOD: 201 with Location header
-HTTP/1.1 201 Created
-Location: /api/v1/users/abc-123
-```
-
-## Response Format
-
-### Success Response
-
-```json
-{
-  "data": {
-    "id": "abc-123",
-    "email": "alice@example.com",
-    "name": "Alice",
-    "created_at": "2025-01-15T10:30:00Z"
-  }
-}
-```
-
-### Collection Response (with Pagination)
-
-```json
-{
-  "data": [
-    { "id": "abc-123", "name": "Alice" },
-    { "id": "def-456", "name": "Bob" }
-  ],
-  "meta": {
-    "total": 142,
-    "page": 1,
-    "per_page": 20,
-    "total_pages": 8
-  },
-  "links": {
-    "self": "/api/v1/users?page=1&per_page=20",
-    "next": "/api/v1/users?page=2&per_page=20",
-    "last": "/api/v1/users?page=8&per_page=20"
-  }
-}
-```
-
-### Error Response
-
-```json
-{
-  "error": {
-    "code": "validation_error",
-    "message": "Request validation failed",
-    "details": [
-      {
-        "field": "email",
-        "message": "Must be a valid email address",
-        "code": "invalid_format"
-      },
-      {
-        "field": "age",
-        "message": "Must be between 0 and 150",
-        "code": "out_of_range"
-      }
-    ]
-  }
-}
-```
-
-### Response Envelope Variants
-
-```typescript
-// Option A: Envelope with data wrapper (recommended for public APIs)
-interface ApiResponse<T> {
-  data: T;
-  meta?: PaginationMeta;
-  links?: PaginationLinks;
-}
-
-interface ApiError {
-  error: {
-    code: string;
-    message: string;
-    details?: FieldError[];
-  };
-}
-
-// Option B: Flat response (simpler, common for internal APIs)
-// Success: just return the resource directly
-// Error: return error object
-// Distinguish by HTTP status code
-```
+- `200` for reads and updates with a body, `201` + `Location` for creates, `202` for accepted async work (with a status resource), and `204` for deletes.
+- Never return `200` with an error body. Never return `500` for bad input.
+- `404` rather than `403` when revealing that a resource exists would leak information (another tenant's record).
 
 ## Pagination
 
-### Offset-Based (Simple)
+| Use | Type | Query | `paging` |
+|-----|------|-------|----------|
+| Admin tables, page numbers, small/medium data | offset | `?page=2&per_page=20` | `current_page`, `per_page`, `total`, `last_page` |
+| Feeds, infinite scroll, exports, big tables | keyset | `?cursor=<id>&per_page=20` | `per_page`, `next_cursor`, `has_more` |
+
+- Cap `per_page` (default 20, max 100) on the server.
+- Keyset pagination orders by a unique, indexed column (usually `id`) and fetches `per_page + 1` rows to compute `has_more`. Details: `scalability/references/code-level.md`.
+- `total` on huge tables is expensive. Drop it, or cache it, rather than counting on every request.
+
+## Filtering, Sorting, Search
 
 ```
-GET /api/v1/users?page=2&per_page=20
-
-# Implementation
-SELECT * FROM users
-ORDER BY created_at DESC
-LIMIT 20 OFFSET 20;
-```
-
-**Pros:** Easy to implement, supports "jump to page N"
-**Cons:** Slow on large offsets (OFFSET 100000), inconsistent with concurrent inserts
-
-### Cursor-Based (Scalable)
-
-```
-GET /api/v1/users?cursor=eyJpZCI6MTIzfQ&limit=20
-
-# Implementation
-SELECT * FROM users
-WHERE id > :cursor_id
-ORDER BY id ASC
-LIMIT 21;  -- fetch one extra to determine has_next
-```
-
-```json
-{
-  "data": [...],
-  "meta": {
-    "has_next": true,
-    "next_cursor": "eyJpZCI6MTQzfQ"
-  }
-}
-```
-
-**Pros:** Consistent performance regardless of position, stable with concurrent inserts
-**Cons:** Cannot jump to arbitrary page, cursor is opaque
-
-### When to Use Which
-
-| Use Case | Pagination Type |
-|----------|----------------|
-| Admin dashboards, small datasets (<10K) | Offset |
-| Infinite scroll, feeds, large datasets | Cursor |
-| Public APIs | Cursor (default) with offset (optional) |
-| Search results | Offset (users expect page numbers) |
-
-## Filtering, Sorting, and Search
-
-### Filtering
-
-```
-# Simple equality
-GET /api/v1/orders?status=active&customer_id=abc-123
-
-# Comparison operators (use bracket notation)
-GET /api/v1/products?price[gte]=10&price[lte]=100
-GET /api/v1/orders?created_at[after]=2025-01-01
-
-# Multiple values (comma-separated)
-GET /api/v1/products?category=electronics,clothing
-
-# Nested fields (dot notation)
-GET /api/v1/orders?customer.country=US
-```
-
-### Sorting
-
-```
-# Single field (prefix - for descending)
-GET /api/v1/products?sort=-created_at
-
-# Multiple fields (comma-separated)
-GET /api/v1/products?sort=-featured,price,-created_at
-```
-
-### Full-Text Search
-
-```
-# Search query parameter
+GET /api/v1/orders?status=paid&customer_id=42
+GET /api/v1/products?price_min=10&price_max=100
+GET /api/v1/products?category=phones,tablets
+GET /api/v1/products?sort=-created_at,price
 GET /api/v1/products?q=wireless+headphones
-
-# Field-specific search
-GET /api/v1/users?email=alice
 ```
 
-### Sparse Fieldsets
+- Every filter and sort field is **allow-listed** and validated (a FormRequest, DTO or validator). Never pass raw column names to the query.
+- Sorted and filtered columns need indexes (`database-reviewer` checks this).
 
-```
-# Return only specified fields (reduces payload)
-GET /api/v1/users?fields=id,name,email
-GET /api/v1/orders?fields=id,total,status&include=customer.name
-```
+## Authentication and Rate Limits
 
-## Authentication and Authorization
-
-### Token-Based Auth
-
-```
-# Bearer token in Authorization header
-GET /api/v1/users
-Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
-
-# API key (for server-to-server)
-GET /api/v1/data
-X-API-Key: sk_live_abc123
-```
-
-### Authorization Patterns
-
-```typescript
-// Resource-level: check ownership
-app.get("/api/v1/orders/:id", async (req, res) => {
-  const order = await Order.findById(req.params.id);
-  if (!order) return res.status(404).json({ error: { code: "not_found" } });
-  if (order.userId !== req.user.id) return res.status(403).json({ error: { code: "forbidden" } });
-  return res.json({ data: order });
-});
-
-// Role-based: check permissions
-app.delete("/api/v1/users/:id", requireRole("admin"), async (req, res) => {
-  await User.delete(req.params.id);
-  return res.status(204).send();
-});
-```
-
-## Rate Limiting
-
-### Headers
-
-```
-HTTP/1.1 200 OK
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 95
-X-RateLimit-Reset: 1640000000
-
-# When exceeded
-HTTP/1.1 429 Too Many Requests
-Retry-After: 60
-{
-  "error": {
-    "code": "rate_limit_exceeded",
-    "message": "Rate limit exceeded. Try again in 60 seconds."
-  }
-}
-```
-
-### Rate Limit Tiers
-
-| Tier | Limit | Window | Use Case |
-|------|-------|--------|----------|
-| Anonymous | 30/min | Per IP | Public endpoints |
-| Authenticated | 100/min | Per user | Standard API access |
-| Premium | 1000/min | Per API key | Paid API plans |
-| Internal | 10000/min | Per service | Service-to-service |
+- Auth: `Authorization: Bearer <token>` for mobile and third-party clients; a cookie session for the first-party SPA (Laravel Sanctum). Server-to-server: an API key header, scoped and rotatable.
+- Rate limits return `429`, `meta.code = rate_limited`, a `Retry-After` header, and `X-RateLimit-Limit` / `X-RateLimit-Remaining` headers. Limits by tier: `scalability/references/resilience.md`.
 
 ## Versioning
 
-### URL Path Versioning (Recommended)
+- URL versioning only: `/api/v1/...`. Start at v1, and keep at most two live versions.
+- **Non-breaking** (no new version): adding fields, optional parameters, endpoints or error codes.
+- **Breaking** (new version): removing or renaming fields, changing types, changing the response format, changing auth.
+- Deprecate with a `Sunset` header and notice to the client teams, then `410 Gone` after the date.
 
-```
-/api/v1/users
-/api/v2/users
-```
+## Checklist before shipping an endpoint
 
-**Pros:** Explicit, easy to route, cacheable
-**Cons:** URL changes between versions
-
-### Header Versioning
-
-```
-GET /api/users
-Accept: application/vnd.myapp.v2+json
-```
-
-**Pros:** Clean URLs
-**Cons:** Harder to test, easy to forget
-
-### Versioning Strategy
-
-```
-1. Start with /api/v1/ — don't version until you need to
-2. Maintain at most 2 active versions (current + previous)
-3. Deprecation timeline:
-   - Announce deprecation (6 months notice for public APIs)
-   - Add Sunset header: Sunset: Sat, 01 Jan 2026 00:00:00 GMT
-   - Return 410 Gone after sunset date
-4. Non-breaking changes don't need a new version:
-   - Adding new fields to responses
-   - Adding new optional query parameters
-   - Adding new endpoints
-5. Breaking changes require a new version:
-   - Removing or renaming fields
-   - Changing field types
-   - Changing URL structure
-   - Changing authentication method
-```
-
-## Implementation Patterns
-
-### TypeScript (Next.js API Route)
-
-```typescript
-import { z } from "zod";
-import { NextRequest, NextResponse } from "next/server";
-
-const createUserSchema = z.object({
-  email: z.string().email(),
-  name: z.string().min(1).max(100),
-});
-
-export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const parsed = createUserSchema.safeParse(body);
-
-  if (!parsed.success) {
-    return NextResponse.json({
-      error: {
-        code: "validation_error",
-        message: "Request validation failed",
-        details: parsed.error.issues.map(i => ({
-          field: i.path.join("."),
-          message: i.message,
-          code: i.code,
-        })),
-      },
-    }, { status: 422 });
-  }
-
-  const user = await createUser(parsed.data);
-
-  return NextResponse.json(
-    { data: user },
-    {
-      status: 201,
-      headers: { Location: `/api/v1/users/${user.id}` },
-    },
-  );
-}
-```
-
-### Python (Django REST Framework)
-
-```python
-from rest_framework import serializers, viewsets, status
-from rest_framework.response import Response
-
-class CreateUserSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    name = serializers.CharField(max_length=100)
-
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ["id", "email", "name", "created_at"]
-
-class UserViewSet(viewsets.ModelViewSet):
-    serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_serializer_class(self):
-        if self.action == "create":
-            return CreateUserSerializer
-        return UserSerializer
-
-    def create(self, request):
-        serializer = CreateUserSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = UserService.create(**serializer.validated_data)
-        return Response(
-            {"data": UserSerializer(user).data},
-            status=status.HTTP_201_CREATED,
-            headers={"Location": f"/api/v1/users/{user.id}"},
-        )
-```
-
-### Go (net/http)
-
-```go
-func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
-    var req CreateUserRequest
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        writeError(w, http.StatusBadRequest, "invalid_json", "Invalid request body")
-        return
-    }
-
-    if err := req.Validate(); err != nil {
-        writeError(w, http.StatusUnprocessableEntity, "validation_error", err.Error())
-        return
-    }
-
-    user, err := h.service.Create(r.Context(), req)
-    if err != nil {
-        switch {
-        case errors.Is(err, domain.ErrEmailTaken):
-            writeError(w, http.StatusConflict, "email_taken", "Email already registered")
-        default:
-            writeError(w, http.StatusInternalServerError, "internal_error", "Internal error")
-        }
-        return
-    }
-
-    w.Header().Set("Location", fmt.Sprintf("/api/v1/users/%s", user.ID))
-    writeJSON(w, http.StatusCreated, map[string]any{"data": user})
-}
-```
-
-## API Design Checklist
-
-Before shipping a new endpoint:
-
-- [ ] Resource URL follows naming conventions (plural, kebab-case, no verbs)
-- [ ] Correct HTTP method used (GET for reads, POST for creates, etc.)
-- [ ] Appropriate status codes returned (not 200 for everything)
-- [ ] Input validated with schema (Zod, Pydantic, Bean Validation)
-- [ ] Error responses follow standard format with codes and messages
-- [ ] Pagination implemented for list endpoints (cursor or offset)
-- [ ] Authentication required (or explicitly marked as public)
-- [ ] Authorization checked (user can only access their own resources)
-- [ ] Rate limiting configured
-- [ ] Response does not leak internal details (stack traces, SQL errors)
-- [ ] Consistent naming with existing endpoints (camelCase vs snake_case)
-- [ ] Documented (OpenAPI/Swagger spec updated)
+- [ ] Existing project: response matches the format detected in Step 0 (same helper, same casing, same pagination fields)
+- [ ] New project: `data` + `paging` (lists only) + `meta`; errors are `data: null` + `meta.message/code[/errors]`
+- [ ] Plural kebab-case resource under `/api/v1`, correct verb and status code
+- [ ] Input validated; filters and sorts allow-listed; `per_page` capped
+- [ ] Lists paginated (keyset for large or unbounded data)
+- [ ] Auth required unless explicitly public; ownership checked (403/404)
+- [ ] Rate limit set; `Idempotency-Key` supported on retryable creates
+- [ ] No internal details in `meta.message`; stable `meta.code`
+- [ ] Tests assert the exact envelope (`laravel-tdd`)

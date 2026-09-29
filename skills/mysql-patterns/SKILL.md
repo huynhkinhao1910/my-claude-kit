@@ -407,6 +407,6 @@ When this skill is used for review, return:
 
 - Skill: `postgres-patterns` - PostgreSQL-specific schema and query patterns
 - Skill: `database-migrations` - migration planning and rollout safety
-- Skill: `backend-patterns` - API and service-layer patterns
+- Skill: `scalability` - bounded queries, keyset pagination, replicas and connection budgets
 - Skill: `security-review` - secret handling, auth, and least privilege
 - Agent: `database-reviewer` - broader database review workflow

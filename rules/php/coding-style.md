@@ -37,4 +37,4 @@ paths:
 
 ## Reference
 
-See skill: `backend-patterns` for broader service/repository layering guidance.
+See skill: `laravel-patterns` for the service/repository layering used in every Laravel project.

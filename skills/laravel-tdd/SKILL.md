@@ -2,7 +2,7 @@
 name: laravel-tdd
 description: >-
   Test-driven development for Laravel APIs in the house style: PHPUnit only, a MySQL test database, feature tests
-  against /api/v1 that assert the success/message/data/errors envelope, Sanctum auth, the 401/403/404/422 paths,
+  against /api/v1 that assert the exact response format (the project's own, or data/paging/meta), Sanctum auth, the 401/403/404/422 paths,
   service tests with real repositories, and Queue/Mail/Http fakes for RabbitMQ jobs and external calls. Use when
   writing or fixing tests for a Laravel endpoint, service, repository, job or policy, or reproducing a Laravel bug
   with a failing test. Trigger on "viết test", "thêm test cho API", "test fail", "reproduce bug". Do NOT use for
@@ -12,7 +12,7 @@ origin: My Claude Kit
 
 # Laravel TDD (house style)
 
-Every behaviour change ships with a PHPUnit test that fails first. Tests exercise the API the way a client does and assert the envelope, not the implementation.
+Every behaviour change ships with a PHPUnit test that fails first. Tests exercise the API the way a client does and assert the response format, not the implementation.
 
 ## When to Use
 
@@ -22,13 +22,13 @@ Every behaviour change ships with a PHPUnit test that fails first. Tests exercis
 
 ## How It Works
 
-1. **Red:** write the feature test for the endpoint, covering the success path and at least one failure path. Run it and confirm it fails for the right reason (404 route missing, or an assertion on the envelope), not because of a typo.
+1. **Red:** write the feature test for the endpoint, covering the success path and at least one failure path. Run it and confirm it fails for the right reason (404 route missing, or an assertion on the response shape), not because of a typo.
 2. **Green:** implement through the layers (FormRequest → Controller → Service → Repository) until it passes.
 3. **Refactor:** keep the test green while you clean up, then run `vendor/bin/pint --test`.
 
 | Layer | Test type | Location | Database |
 |-------|-----------|----------|----------|
-| Endpoint (routing, validation, auth, envelope) | Feature | `tests/Feature/Api/V1/<Resource>/` | yes |
+| Endpoint (routing, validation, auth, response format) | Feature | `tests/Feature/Api/V1/<Resource>/` | yes |
 | Service business rules | Feature-style with real repositories | `tests/Feature/Services/` | yes |
 | Repository queries that are complex (filters, locking, aggregates) | Feature | `tests/Feature/Repositories/` | yes |
 | Pure PHP (value objects, calculators) | Unit | `tests/Unit/` | no |
@@ -58,7 +58,9 @@ Production runs MySQL, and SQLite behaves differently on JSON columns, collation
 - Every test that touches the database uses `RefreshDatabase`. It migrates once per run and wraps each test in a transaction.
 - On Laravel 11+ the cache variable is `CACHE_STORE`.
 
-### Envelope assertions: `tests/Concerns/AssertsApiResponse.php`
+### Response assertions: `tests/Concerns/AssertsApiResponse.php`
+
+**Existing project:** if the suite already has response assertions, use them. Otherwise write this trait **in the project's own format**, as detected in `api-design` Step 0. **New project:** use it as is. It asserts the default contract (`data` + `paging` for lists + `meta`).
 
 ```php
 <?php
@@ -72,25 +74,27 @@ trait AssertsApiResponse
     protected function assertApiSuccess(TestResponse $response, int $status = 200): TestResponse
     {
         return $response->assertStatus($status)
-            ->assertJsonStructure(['success', 'message', 'data', 'errors'])
-            ->assertJsonPath('success', true)
-            ->assertJsonPath('errors', null);
+            ->assertJsonStructure(['data', 'meta' => ['message', 'request_id']])
+            ->assertJsonMissingPath('paging')
+            ->assertJsonMissingPath('meta.code');
     }
 
     protected function assertApiPaginated(TestResponse $response): TestResponse
     {
-        return $this->assertApiSuccess($response)
-            ->assertJsonStructure(['meta' => ['current_page', 'per_page', 'total', 'last_page']]);
+        return $response->assertOk()
+            ->assertJsonStructure(['data', 'paging' => ['current_page', 'per_page', 'total', 'last_page'], 'meta' => ['message', 'request_id']]);
     }
 
-    protected function assertApiError(TestResponse $response, int $status, ?array $errorFields = null): TestResponse
+    protected function assertApiError(TestResponse $response, int $status, string $code, ?array $errorFields = null): TestResponse
     {
         $response->assertStatus($status)
-            ->assertJsonPath('success', false)
-            ->assertJsonPath('data', null);
+            ->assertJsonPath('data', null)
+            ->assertJsonPath('meta.code', $code)
+            ->assertJsonStructure(['meta' => ['message', 'code', 'request_id']])
+            ->assertJsonMissingPath('paging');
 
         if ($errorFields !== null) {
-            $response->assertJsonStructure(['errors' => $errorFields]);
+            $response->assertJsonStructure(['meta' => ['errors' => $errorFields]]);
         }
 
         return $response;
@@ -145,7 +149,7 @@ final class StoreOrderTest extends TestCase
 
         $response = $this->postJson(self::URL, ['quantity' => 0]);
 
-        $this->assertApiError($response, 422, ['product_id', 'quantity']);
+        $this->assertApiError($response, 422, 'validation_failed', ['product_id', 'quantity']);
     }
 
     public function test_it_rejects_quantity_above_stock(): void
@@ -155,14 +159,14 @@ final class StoreOrderTest extends TestCase
 
         $response = $this->postJson(self::URL, ['product_id' => $product->id, 'quantity' => 2]);
 
-        $this->assertApiError($response, 422, ['quantity']);
+        $this->assertApiError($response, 422, 'insufficient_stock', ['quantity']);
         $this->assertDatabaseCount('orders', 0);
         $this->assertSame(1, $product->fresh()->stock);   // transaction rolled back
     }
 
     public function test_guest_gets_401(): void
     {
-        $this->assertApiError($this->postJson(self::URL, []), 401);
+        $this->assertApiError($this->postJson(self::URL, []), 401, 'unauthenticated');
     }
 }
 ```
@@ -172,11 +176,11 @@ Each endpoint needs these cases, as they apply:
 | Case | Status |
 |------|--------|
 | success | 200 / 201 |
-| invalid input | 422, with `errors` keyed by field |
+| invalid input | 422, `validation_failed`, with `meta.errors` keyed by field |
 | unauthenticated | 401 |
 | authenticated but not allowed (someone else's resource) | 403 |
 | missing resource | 404 |
-| business rule violation (`BusinessException`) | its status |
+| business rule violation (`BusinessException`) | its status and its `meta.code` |
 
 ### Ownership and 404
 
@@ -186,14 +190,14 @@ public function test_user_cannot_view_someone_elses_order(): void
     $order = Order::factory()->create();              // belongs to another user
     Sanctum::actingAs(User::factory()->create());
 
-    $this->assertApiError($this->getJson("/api/v1/orders/{$order->id}"), 403);
+    $this->assertApiError($this->getJson("/api/v1/orders/{$order->id}"), 403, 'forbidden');
 }
 
 public function test_missing_order_returns_404(): void
 {
     Sanctum::actingAs(User::factory()->create());
 
-    $this->assertApiError($this->getJson('/api/v1/orders/999999'), 404);
+    $this->assertApiError($this->getJson('/api/v1/orders/999999'), 404, 'not_found');
 }
 ```
 
@@ -211,7 +215,7 @@ public function test_index_is_paginated_and_scoped_to_the_user(): void
 
     $this->assertApiPaginated($response)
         ->assertJsonCount(2, 'data')
-        ->assertJsonPath('meta.total', 3);
+        ->assertJsonPath('paging.total', 3);
 }
 ```
 
@@ -280,7 +284,7 @@ XDEBUG_MODE=coverage php artisan test --coverage --min=80
 
 ### Rules
 
-- Assert outcomes: the envelope, the database state, dispatched jobs and sent mail. Don't assert which methods were called internally.
+- Assert outcomes: the response format and `meta.code`, the database state, dispatched jobs and sent mail. Don't assert which methods were called internally.
 - One behaviour per test, with the name stating it: `test_guest_gets_401`, not `test_store_2`.
 - No `sleep()` and no real network. Freeze time with `$this->travelTo(now())` when dates matter.
 - A bug fix starts with a test that reproduces the bug and fails before the fix.

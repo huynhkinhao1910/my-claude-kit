@@ -118,7 +118,7 @@ await this.pdf.render(invoice); await this.mailer.send(user, pdf);
 
 // GOOD: publish and return 202; a consumer does the work with retries
 await this.queue.publish('invoices.render', { invoiceId: invoice.id });
-return { success: true, message: 'Queued', data: { invoiceId: invoice.id, status: 'processing' }, errors: null };
+return { data: { invoiceId: invoice.id, status: 'processing' }, message: 'Queued' };   // interceptor adds meta (api-design)
 ```
 
 ### Outbound call without a deadline → bounded

@@ -19,7 +19,7 @@ These are starting points. Agree on the real numbers per product, and write them
 |--------|---------|--------|
 | Latency | p50 / p95 / p99 per route | access log with `$request_time` / `upstream_response_time`, or app metrics (Prometheus histogram) |
 | Traffic | rps per route | proxy log / metrics |
-| Errors | 5xx rate, plus the rate of each 4xx family | proxy log, app log with the envelope `message` |
+| Errors | 5xx rate, plus the rate of each 4xx family | proxy log, app log with `meta.code` |
 | Saturation | CPU, RAM, PHP-FPM active vs `max_children`, DB connections vs `max_connections`, Redis memory, RabbitMQ queue depth and unacked count | node exporter, php-fpm status, `SHOW STATUS`, RabbitMQ management API |
 
 Minimum tooling at L1: Uptime Kuma or a similar uptime check, plus Netdata, or node exporter with Prometheus and Grafana, on the VPS. Keep structured JSON logs (Laravel `daily` + JSON formatter, `nestjs-pino`, Go `slog`) with a request ID.
@@ -81,7 +81,7 @@ export default function () {
   const res = http.get(`${__ENV.BASE_URL}/api/v1/orders?per_page=20`, { headers, tags: { kind: 'read' } });
   check(res, {
     'status 200': (r) => r.status === 200,
-    'envelope success': (r) => r.json('success') === true,
+    'has data': (r) => r.json('data') !== null,
   });
   sleep(Math.random());
 }
