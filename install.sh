@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
-# Install my-claude-kit into a Claude Code config dir.
+# Install My Claude Kit into a Claude Code config dir.
 # Usage: ./install.sh [--dry-run] [--no-hooks]
 #   --dry-run   print what would happen, change nothing
 #   --no-hooks  copy files only, do not register hooks in settings.json
-# Env:   CLAUDE_DIR (default ~/.claude), RULES_NS (default ecc)
+# Env:   CLAUDE_DIR (default ~/.claude), RULES_NS (default my-claude-kit),
+#        LEGACY_RULES_NS (default ecc: old namespace whose kit rule dirs get retired)
 set -euo pipefail
 
 KIT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLAUDE_DIR="${CLAUDE_DIR:-$HOME/.claude}"
-RULES_NS="${RULES_NS:-ecc}"
+RULES_NS="${RULES_NS:-my-claude-kit}"
+LEGACY_RULES_NS="${LEGACY_RULES_NS:-ecc}"
 DRY_RUN=0
 REGISTER_HOOKS=1
 for arg in "$@"; do
@@ -39,11 +41,25 @@ install_item() {
   echo "installed ${dest#"$CLAUDE_DIR"/}"
 }
 
+# retire_item <path>: move a superseded install into the backup so it stops loading.
+retire_item() {
+  local target="$1" rel="${1#"$CLAUDE_DIR"/}"
+  run mkdir -p "$BACKUP_DIR/$(dirname "$rel")"
+  run mv "$target" "$BACKUP_DIR/$rel"
+  echo "retired $rel (moved to backup)"
+}
+
 for f in "$KIT_DIR"/agents/*.md;   do install_item "$f" "$CLAUDE_DIR/agents/$(basename "$f")"; done
 for f in "$KIT_DIR"/commands/*.md; do install_item "$f" "$CLAUDE_DIR/commands/$(basename "$f")"; done
 for d in "$KIT_DIR"/skills/*/;     do d="${d%/}"; install_item "$d" "$CLAUDE_DIR/skills/$(basename "$d")"; done
-# rules/php and rules/golang link to ../common, so all three share one namespace.
-for d in "$KIT_DIR"/rules/*/;      do d="${d%/}"; install_item "$d" "$CLAUDE_DIR/rules/$RULES_NS/$(basename "$d")"; done
+# Language rules link to ../common, so every kit rule dir shares one namespace.
+for d in "$KIT_DIR"/rules/*/; do
+  d="${d%/}"; name="$(basename "$d")"
+  install_item "$d" "$CLAUDE_DIR/rules/$RULES_NS/$name"
+  # Same rules left in the old namespace would load twice; retire only the dirs the kit owns.
+  legacy="$CLAUDE_DIR/rules/$LEGACY_RULES_NS/$name"
+  if [ "$LEGACY_RULES_NS" != "$RULES_NS" ] && [ -e "$legacy" ]; then retire_item "$legacy"; fi
+done
 install_item "$KIT_DIR/hooks" "$CLAUDE_DIR/hooks/my-claude-kit"
 
 if [ "$REGISTER_HOOKS" -eq 1 ]; then

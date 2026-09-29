@@ -2,7 +2,7 @@
 name: golang-patterns
 description: >-
   Use when working on a Go project: writing or refactoring Go code, structs/interfaces, goroutines and channels, error handling, packages/modules, HTTP handlers, or tests. Trigger on requests like "viết hàm Go", "sửa handler", "thêm goroutine", "tách package", "viết test", or any task touching .go files (or go.mod/go.sum). Apply idiomatic, production-grade Go conventions. Do NOT use for non-Go languages or generic programming questions unrelated to Go.
-origin: ECC
+origin: My Claude Kit
 ---
 
 # Go Development Patterns

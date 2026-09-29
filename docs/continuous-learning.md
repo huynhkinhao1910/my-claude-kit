@@ -1,6 +1,6 @@
 # Continuous Learning — Claude tự rút kinh nghiệm theo project
 
-Tài liệu này giải thích cơ chế "tự học" trong kit: nó làm gì, dữ liệu nằm ở đâu, cách bật/tắt, cách dùng hằng ngày và cách xử lý sự cố.
+Tài liệu này giải thích cơ chế "tự học" trong My Claude Kit: nó làm gì, dữ liệu nằm ở đâu, cách bật/tắt, cách dùng hằng ngày và cách xử lý sự cố.
 
 > **Tóm tắt một câu:** hook ghi lại cách bạn làm việc, một agent Haiku chạy nền (tắt mặc định) rút ra các "instinct" có điểm tin cậy, rồi đầu mỗi session các instinct mạnh nhất được nạp vào context để Claude làm theo.
 

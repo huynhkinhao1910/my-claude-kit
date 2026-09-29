@@ -43,6 +43,6 @@ paths:
 
 ## Reference
 
-- ECC skills: `security-review`, `nuxt4-patterns`.
+- My Claude Kit skills: `nuxt4-patterns` (plus the `security-reviewer` agent).
 - [Nuxt runtime config](https://nuxt.com/docs/guide/going-further/runtime-config)
 - [h3 request utils](https://v1.h3.dev/utils/request)

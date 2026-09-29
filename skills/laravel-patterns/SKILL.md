@@ -9,7 +9,7 @@ description: Use when working on a Laravel PHP project writing or refactoring
     codebase. Apply production-grade Laravel patterns. Do NOT use for
     non-Laravel PHP, frontend-only work, or generic PHP unrelated to
     the Laravel framework.
-origin: ECC
+origin: My Claude Kit
 ---
 
 # Laravel Development Patterns

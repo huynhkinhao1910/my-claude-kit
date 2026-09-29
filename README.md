@@ -1,6 +1,6 @@
-# my-claude-kit
+# My Claude Kit
 
-Personal Claude Code kit for a PHP/Laravel, Go, TypeScript/NestJS, MySQL and Redis backend stack with a Vue/Nuxt/React/Next front end, plus the `/feature` delivery pipeline and continuous learning (instincts learned per project). Extracted from the ECC install in `~/.claude` (already partly customized) so the kit can evolve independently of upstream ECC.
+My Claude Kit is a personal Claude Code kit for a PHP/Laravel, Go, TypeScript/NestJS, MySQL and Redis backend stack with a Vue/Nuxt/React/Next front end, plus the `/feature` delivery pipeline and continuous learning (instincts learned per project). Extracted from the ECC install in `~/.claude` (already partly customized) so the kit can evolve independently of upstream ECC.
 
 ## Install
 
@@ -17,7 +17,16 @@ Requirements: `bash`, `git`, `python3`. The background observer also needs the `
 | Env | Default | Meaning |
 |-----|---------|---------|
 | `CLAUDE_DIR` | `~/.claude` | Target config dir |
-| `RULES_NS` | `ecc` | Rules subfolder (`~/.claude/rules/<ns>/`) |
+| `RULES_NS` | `my-claude-kit` | Rules subfolder (`~/.claude/rules/<ns>/`) |
+| `LEGACY_RULES_NS` | `ecc` | Old namespace. Any rule dir the kit owns that is found here is moved to the backup so it does not load twice. Dirs the kit does not own (e.g. `angular`) are left alone |
+
+## Naming
+
+The kit is branded **My Claude Kit**. Some `ECC` names stay on purpose, because the code reads them by name:
+
+- `ECC_*` env vars (`ECC_INSTINCT_CONFIDENCE_THRESHOLD`, `ECC_SKIP_OBSERVE`, …) and the `~/.local/share/ecc-homunculus` data dir. The continuous-learning scripts read these, and renaming them would break learning and orphan the instincts already stored.
+- `upstream/`, which holds the original ECC files for diffing.
+- Origin notes such as "from ECC". These record where a file came from and are not branding.
 
 ## Contents
 
@@ -104,7 +113,7 @@ python3 lint.py ~/.claude  # lint an installed config
 python3 -m unittest discover -s tests
 ```
 
-This runs 23 tests: `inject-instincts.py`, `merge-settings.py`, and a check that the kit passes `lint.py` with 0 errors.
+This runs 28 tests: `inject-instincts.py`, `merge-settings.py`, `install.sh` (rules namespace and retiring the legacy namespace), and a check that the kit passes `lint.py` with 0 errors.
 
 ## upstream/
 
