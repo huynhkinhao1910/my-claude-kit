@@ -1,6 +1,6 @@
 ---
 name: laravel-reviewer
-description: Read-only reviewer for Laravel API diffs against the house style: layers, ApiResponse envelope, central exceptions, Sanctum, RabbitMQ jobs, transactions, Eloquent, PHPUnit tests. Use PROACTIVELY after changes to .php files in app/, routes/, database/, config/ or tests/. Do NOT use for security-only (security-reviewer), query/index/migration depth (database-reviewer) or non-PHP code.
+description: Read-only reviewer for Laravel API diffs against the house style — layers, ApiResponse envelope, central exceptions, Sanctum, RabbitMQ jobs, transactions, Eloquent, PHPUnit tests. Use PROACTIVELY after changes to .php files in app/, routes/, database/, config/ or tests/. Do NOT use for security-only (security-reviewer), query/index/migration depth (database-reviewer) or non-PHP code.
 tools: ["Read", "Grep", "Glob", "Bash"]
 model: opus
 skills: review-checklist, laravel-patterns, laravel-tdd
