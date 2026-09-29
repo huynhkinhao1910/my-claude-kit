@@ -1,15 +1,18 @@
 # my-claude-kit
 
-Personal Claude Code kit for a PHP/Laravel, Go, TypeScript/NestJS, MySQL and Redis stack, plus the `/feature` delivery pipeline. Extracted from the ECC install in `~/.claude` (already partly customized) so the kit can evolve independently of upstream ECC.
+Personal Claude Code kit for a PHP/Laravel, Go, TypeScript/NestJS, MySQL and Redis stack, plus the `/feature` delivery pipeline and continuous learning (instincts learned per project). Extracted from the ECC install in `~/.claude` (already partly customized) so the kit can evolve independently of upstream ECC.
 
 ## Install
 
 ```bash
-./install.sh --dry-run   # preview
-./install.sh             # install into ~/.claude
+./install.sh --dry-run   # preview files and the resulting settings.json hooks
+./install.sh             # install into ~/.claude and register hooks
+./install.sh --no-hooks  # copy files only, leave settings.json untouched
 ```
 
-Any existing file is backed up to `~/.claude/.backup/my-claude-kit-<timestamp>/` before it is overwritten.
+Any existing file is backed up to `~/.claude/.backup/my-claude-kit-<timestamp>/` before it is overwritten. `settings.json` is backed up to `settings.json.bak-<timestamp>` whenever hooks change. Restart Claude Code after installing.
+
+Requirements: `bash`, `git`, `python3`. The background observer also needs the `claude` CLI.
 
 | Env | Default | Meaning |
 |-----|---------|---------|
@@ -44,6 +47,19 @@ Origin legend: **own** = not in ECC, **custom** = modified from ECC, **ecc** = i
 
 `typescript-reviewer` and `python-reviewer` are kept because `/review` routes to them by file type (for example, Vue or NestJS files). `e2e-runner` is referenced by `rules/typescript/testing.md`.
 
+### Continuous learning
+
+Full guide (Vietnamese): [docs/continuous-learning.md](docs/continuous-learning.md).
+
+| Piece | What it does | Origin |
+|-------|--------------|--------|
+| `skills/continuous-learning-v2` | `observe.sh` records tool calls per project; the Haiku observer turns them into instincts | ecc |
+| `hooks/inject-instincts.py` | SessionStart hook: injects instincts with confidence ≥ 0.5 (max 10, project first) | own |
+| `scripts/merge-settings.py` | Registers or removes (`--remove`) the kit hooks in `settings.json` and leaves the user's own hooks alone | own |
+| `/instinct-status`, `/instinct-export`, `/instinct-import`, `/evolve`, `/promote`, `/projects`, `/prune` | Manage instincts | custom (paths point to `~/.claude/skills`) |
+
+The observer is **off by default**. To turn it on, set `observer.enabled: true` in `~/.local/share/ecc-homunculus/config.json` (not in the skill's own `config.json`, which a reinstall overwrites). To stop recording and injection entirely, create `~/.local/share/ecc-homunculus/disabled`.
+
 ### Go commands
 
 | Command | Origin |
@@ -62,6 +78,14 @@ Origin legend: **own** = not in ECC, **custom** = modified from ECC, **ecc** = i
 ### Rules
 
 `rules/common`, `rules/php`, `rules/golang`, `rules/typescript`. The language rules link to `../common/`, so they all install into the same namespace.
+
+## Tests
+
+```bash
+python3 -m unittest discover -s tests
+```
+
+This runs 22 tests covering `inject-instincts.py` and `merge-settings.py`.
 
 ## upstream/
 
