@@ -66,10 +66,10 @@ Bản chất là một hệ thống **ghi chú tự động có chấm điểm**
 
 | File | Vai trò | Nguồn |
 |------|---------|-------|
-| `skills/continuous-learning-v2/` | Skill gốc: `observe.sh`, observer, `instinct-cli.py` | ECC, giữ nguyên |
-| `hooks/inject-instincts.py` | Hook SessionStart nạp instinct vào session | Tự viết (thay cho `session-start.js` 840 dòng của ECC) |
+| `skills/continuous-learning-v2/` | Engine gốc: `observe.sh`, observer, `instinct-cli.py` | Mã nguồn mở (MIT), giữ nguyên để dễ cập nhật |
+| `hooks/inject-instincts.py` | Hook SessionStart nạp instinct vào session | Viết riêng cho kit |
 | `scripts/merge-settings.py` | Đăng ký / gỡ hook trong `settings.json` | Tự viết |
-| `commands/instinct-*.md`, `evolve`, `promote`, `projects`, `prune` | Slash command quản lý instinct | ECC / `~/.claude`, đã sửa đường dẫn |
+| `commands/instinct-*.md`, `evolve`, `promote`, `projects`, `prune` | Slash command quản lý instinct | Đã sửa đường dẫn về `~/.claude/skills` |
 
 `inject-instincts.py` **import thẳng** `detect_project()` và `load_all_instincts()` từ `instinct-cli.py`. Nhờ vậy hash project luôn khớp với thứ `observe.sh` ghi ra, và kit không phải tự viết lại thuật toán này.
 
@@ -358,4 +358,4 @@ python3 -m unittest discover -s tests
 - `tests/test_inject_instincts.py` (11 test): ngưỡng, giới hạn số lượng, project thắng global, xếp hạng, env sai định dạng, file `disabled`, thiếu CLI, stdin hỏng.
 - `tests/test_merge_settings.py` (11 test): tạo mới, giữ hook người dùng, idempotent, dọn entry cũ, backup, `--remove`, JSON hỏng, symlink, `--dry-run`.
 
-Test dùng chính `instinct-cli.py` thật để tính hash project, nên nếu ECC đổi thuật toán hash thì test sẽ bắt được.
+Test dùng chính `instinct-cli.py` thật để tính hash project, nên nếu engine đổi thuật toán hash thì test sẽ bắt được.

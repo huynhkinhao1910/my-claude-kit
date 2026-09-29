@@ -1,13 +1,11 @@
 # My Claude Kit
 
-Bộ agent, skill, command, rules và hook cá nhân cho **Claude Code**. Kit được tách ra từ ECC (Everything Claude Code), rồi cắt gọn và viết lại theo đúng stack và cách làm việc của mình:
+Bộ agent, skill, command, rules và hook cá nhân cho **Claude Code**, được thiết kế và tuỳ biến theo đúng stack và cách làm việc của mình:
 
 - **Backend:** PHP/Laravel, Go, TypeScript/NestJS, trên MySQL, Redis và RabbitMQ
 - **Frontend:** Vue 3 / Nuxt, React / Next.js
 - **Quy trình:** pipeline `/feature` (spec → plan → TDD → verify → review → ship qua GitLab MR), đường nhanh `/quick` và `/debug` cho việc nhỏ
 - **Chất lượng:** Laravel house style, một API contract thống nhất, scalability, lớp an toàn (chặn secret và lệnh phá hoại), tự học theo project (instincts)
-
-Kit tiến hóa độc lập với ECC. Bản ECC gốc của từng file được giữ trong `upstream/` để đối chiếu.
 
 ---
 
@@ -28,6 +26,7 @@ Kit tiến hóa độc lập với ECC. Bản ECC gốc của từng file đư�
 13. [Cấu trúc repo](#13-cấu-trúc-repo)
 14. [Tự custom kit](#14-tự-custom-kit)
 15. [Xử lý sự cố](#15-xử-lý-sự-cố)
+16. [Giấy phép và ghi nhận](#16-giấy-phép-và-ghi-nhận)
 
 ---
 
@@ -194,55 +193,53 @@ Không truyền base thì review thay đổi chưa commit. Có base thì review 
 
 ## 5. Danh mục command (28)
 
-Nguồn gốc: **own** = viết riêng · **custom** = sửa từ ECC · **ecc** = giữ nguyên ECC.
-
 ### Pipeline
 
-| Command | Tham số | Việc | Nguồn |
-|---------|---------|------|-------|
-| `/feature` | `<slug> <yêu cầu \| file \| URL>` | Điều phối toàn bộ pipeline, có resume | own |
-| `/spec` | `<slug> <yêu cầu>` | Phase 1: `spec.md` + Gate 1 | own |
-| `/plan` | `<slug>` hoặc `<việc lẻ>` | Phase 2: `plan.md` + Gate 2; không có slug thì là kế hoạch ad-hoc | custom |
-| `/implement` | `<slug> [T1,T2 \| all]` | Phase 3: TDD từng task, mỗi task 1 commit | own |
-| `/verify` | `[slug]` | Cổng chất lượng theo stack | own |
-| `/review` | `<slug> [base=main]` | Phase 4: review song song → `review.md` + Gate 3 | own |
-| `/ship` | `<slug>` | Phase 5: tài liệu + MR description, push, mở MR draft | own |
+| Command | Tham số | Việc |
+|---------|---------|------|
+| `/feature` | `<slug> <yêu cầu \| file \| URL>` | Điều phối toàn bộ pipeline, có resume |
+| `/spec` | `<slug> <yêu cầu>` | Phase 1: `spec.md` + Gate 1 |
+| `/plan` | `<slug>` hoặc `<việc lẻ>` | Phase 2: `plan.md` + Gate 2; không có slug thì là kế hoạch ad-hoc |
+| `/implement` | `<slug> [T1,T2 \| all]` | Phase 3: TDD từng task, mỗi task 1 commit |
+| `/verify` | `[slug]` | Cổng chất lượng theo stack |
+| `/review` | `<slug> [base=main]` | Phase 4: review song song → `review.md` + Gate 3 |
+| `/ship` | `<slug>` | Phase 5: tài liệu + MR description, push, mở MR draft |
 
 ### Hằng ngày
 
-| Command | Tham số | Việc | Nguồn |
-|---------|---------|------|-------|
-| `/quick` | `<việc>` | Sửa nhỏ, 1 cổng duyệt | own |
-| `/debug` | `<triệu chứng \| lỗi \| request_id>` | Tìm nguyên nhân gốc, dừng lại báo cáo | own |
-| `/code-review` | `[base]` | Review local, chỉ đọc | own |
-| `/build-fix` | `[path \| lỗi]` | Sửa build/type/lint bằng resolver đúng stack | own |
-| `/refactor-clean` | `[path]` | Xóa dead code theo đợt an toàn | own |
-| `/save-session` | — | Lưu trạng thái phiên làm việc | ecc |
-| `/resume-session` | `[file]` | Mở lại phiên đã lưu gần nhất | ecc |
+| Command | Tham số | Việc |
+|---------|---------|------|
+| `/quick` | `<việc>` | Sửa nhỏ, 1 cổng duyệt |
+| `/debug` | `<triệu chứng \| lỗi \| request_id>` | Tìm nguyên nhân gốc, dừng lại báo cáo |
+| `/code-review` | `[base]` | Review local, chỉ đọc |
+| `/build-fix` | `[path \| lỗi]` | Sửa build/type/lint bằng resolver đúng stack |
+| `/refactor-clean` | `[path]` | Xóa dead code theo đợt an toàn |
+| `/save-session` | — | Lưu trạng thái phiên làm việc |
+| `/resume-session` | `[file]` | Mở lại phiên đã lưu gần nhất |
 
 ### Theo ngôn ngữ
 
-| Command | Việc | Nguồn |
-|---------|------|-------|
-| `/go-build` | Sửa lỗi `go build`/`go vet`/lint (go-build-resolver) | custom |
-| `/go-test` | TDD cho Go, table-driven test, coverage | custom |
-| `/go-review` | Review Go (go-reviewer) | ecc |
-| `/vue-review` | Review Vue (vue-reviewer + typescript-reviewer) | ecc |
-| `/react-review` | Review React (react-reviewer + typescript-reviewer) | ecc |
-| `/react-build` | Sửa build React/Next (react-build-resolver) | ecc |
-| `/react-test` | TDD cho React bằng Testing Library | ecc |
+| Command | Việc |
+|---------|------|
+| `/go-build` | Sửa lỗi `go build`/`go vet`/lint (go-build-resolver) |
+| `/go-test` | TDD cho Go, table-driven test, coverage |
+| `/go-review` | Review Go (go-reviewer) |
+| `/vue-review` | Review Vue (vue-reviewer + typescript-reviewer) |
+| `/react-review` | Review React (react-reviewer + typescript-reviewer) |
+| `/react-build` | Sửa build React/Next (react-build-resolver) |
+| `/react-test` | TDD cho React bằng Testing Library |
 
 ### Continuous learning
 
-| Command | Việc | Nguồn |
-|---------|------|-------|
-| `/instinct-status` | Xem instinct của project và global, kèm confidence | custom |
-| `/projects` | Danh sách project đã ghi nhận | custom |
-| `/evolve` | Gom instinct thành skill/command/agent | custom |
-| `/promote` | Nâng instinct của project lên global | custom |
-| `/prune` | Xóa instinct pending quá 30 ngày | custom |
-| `/instinct-export` | Xuất instinct ra file | custom |
-| `/instinct-import` | Nhập instinct từ file hoặc URL | custom |
+| Command | Việc |
+|---------|------|
+| `/instinct-status` | Xem instinct của project và global, kèm confidence |
+| `/projects` | Danh sách project đã ghi nhận |
+| `/evolve` | Gom instinct thành skill/command/agent |
+| `/promote` | Nâng instinct của project lên global |
+| `/prune` | Xóa instinct pending quá 30 ngày |
+| `/instinct-export` | Xuất instinct ra file |
+| `/instinct-import` | Nhập instinct từ file hoặc URL |
 
 ---
 
@@ -252,43 +249,43 @@ Cột **Ghi code**: ✍️ = được sửa code · 📄 = chỉ ghi tài liệu
 
 ### Pipeline
 
-| Agent | Model | Ghi code | Vai trò | Nguồn |
-|-------|-------|----------|---------|-------|
-| requirement-analyst | opus | 📄 | Yêu cầu thô → `spec.md` testable (AC có ID, edge case, câu hỏi mở) | own |
-| code-explorer | sonnet | 👁 | Vẽ bản đồ một tính năng đang có (entry point, luồng, tầng, file:line) | custom |
-| planner | opus | 📄 | Spec đã duyệt → `plan.md` với task T1..Tn gắn với AC | custom |
-| architect | opus | 📄 | Quyết định kiến trúc xuyên module → ADR trong `docs/adr/` | own |
-| test-writer | sonnet | ✍️ | Viết test FAIL trước (TDD red), xác nhận fail đúng lý do | own |
-| implementer | sonnet | ✍️ | Làm đúng 1 task tới khi test xanh, rồi format và static analysis | own |
-| spec-verifier | sonnet | 👁 | Bảng truy vết AC → test, chấm chất lượng test | own |
-| doc-writer | sonnet | 📄 | Tài liệu tính năng (tiếng Việt) + MR description (tiếng Anh) từ diff thật | own |
-| commit-message-writer | haiku | 👁 | Viết Conventional Commit từ `git diff --staged` | own |
+| Agent | Model | Ghi code | Vai trò |
+|-------|-------|----------|---------|
+| requirement-analyst | opus | 📄 | Yêu cầu thô → `spec.md` testable (AC có ID, edge case, câu hỏi mở) |
+| code-explorer | sonnet | 👁 | Vẽ bản đồ một tính năng đang có (entry point, luồng, tầng, file:line) |
+| planner | opus | 📄 | Spec đã duyệt → `plan.md` với task T1..Tn gắn với AC |
+| architect | opus | 📄 | Quyết định kiến trúc xuyên module → ADR trong `docs/adr/` |
+| test-writer | sonnet | ✍️ | Viết test FAIL trước (TDD red), xác nhận fail đúng lý do |
+| implementer | sonnet | ✍️ | Làm đúng 1 task tới khi test xanh, rồi format và static analysis |
+| spec-verifier | sonnet | 👁 | Bảng truy vết AC → test, chấm chất lượng test |
+| doc-writer | sonnet | 📄 | Tài liệu tính năng (tiếng Việt) + MR description (tiếng Anh) từ diff thật |
+| commit-message-writer | haiku | 👁 | Viết Conventional Commit từ `git diff --staged` |
 
 ### Review (đều read-only)
 
-| Agent | Model | Phạm vi | Nguồn |
-|-------|-------|---------|-------|
-| laravel-reviewer | opus | Laravel theo house style: tầng, API format, exception, Sanctum, RabbitMQ, transaction, test PHPUnit. Vi phạm `[layers]`/`[api]` là **MAJOR** | own |
-| security-reviewer | opus | OWASP: IDOR, mass assignment, injection, XSS, secret, upload, SSRF, webhook, race trên tiền/tồn kho | custom |
-| scalability-reviewer | opus | Tải ở 10× và chạy nhiều node. Mỗi finding phải nêu mức tải sẽ vỡ và tài nguyên bị cạn | own |
-| database-reviewer | sonnet | MySQL/InnoDB + Eloquent: index, query plan, N+1, migration bảng lớn, lock | custom |
-| typescript-reviewer | sonnet | TS/JS/NestJS/Node: type, async, boundary | custom |
-| vue-reviewer | sonnet | Vue 3/Nuxt: Composition API, reactivity, Pinia/Router | ecc (description viết lại) |
-| react-reviewer | sonnet | React/Next: hook, render, server/client boundary, a11y | ecc (description viết lại) |
-| go-reviewer | sonnet | Go: idiom, error, context, concurrency, rò rỉ tài nguyên | custom |
-| python-reviewer | sonnet | Python: typing, error handling, async | custom |
-| silent-failure-hunter | sonnet | Exception bị nuốt, catch rỗng, fallback che lỗi, thiếu timeout/rollback | custom |
-| code-reviewer | sonnet | Dự phòng cho shell, SQL script, YAML/CI, Dockerfile, config | custom |
+| Agent | Model | Phạm vi |
+|-------|-------|---------|
+| laravel-reviewer | opus | Laravel theo house style: tầng, API format, exception, Sanctum, RabbitMQ, transaction, test PHPUnit. Vi phạm `[layers]`/`[api]` là **MAJOR** |
+| security-reviewer | opus | OWASP: IDOR, mass assignment, injection, XSS, secret, upload, SSRF, webhook, race trên tiền/tồn kho |
+| scalability-reviewer | opus | Tải ở 10× và chạy nhiều node. Mỗi finding phải nêu mức tải sẽ vỡ và tài nguyên bị cạn |
+| database-reviewer | sonnet | MySQL/InnoDB + Eloquent: index, query plan, N+1, migration bảng lớn, lock |
+| typescript-reviewer | sonnet | TS/JS/NestJS/Node: type, async, boundary |
+| vue-reviewer | sonnet | Vue 3/Nuxt: Composition API, reactivity, Pinia/Router |
+| react-reviewer | sonnet | React/Next: hook, render, server/client boundary, a11y |
+| go-reviewer | sonnet | Go: idiom, error, context, concurrency, rò rỉ tài nguyên |
+| python-reviewer | sonnet | Python: typing, error handling, async |
+| silent-failure-hunter | sonnet | Exception bị nuốt, catch rỗng, fallback che lỗi, thiếu timeout/rollback |
+| code-reviewer | sonnet | Dự phòng cho shell, SQL script, YAML/CI, Dockerfile, config |
 
 ### Sửa lỗi build và bảo trì
 
-| Agent | Model | Ghi code | Vai trò | Nguồn |
-|-------|-------|----------|---------|-------|
-| build-error-resolver | sonnet | ✍️ | Build/type/lint PHP, TS/Vue, Python | custom |
-| react-build-resolver | sonnet | ✍️ | Build React/Next (Vite, webpack, hydration) | ecc (description viết lại) |
-| go-build-resolver | sonnet | ✍️ | `go build`/`go vet`/golangci-lint | custom |
-| refactor-cleaner | sonnet | ✍️ | Xóa dead code, test xanh sau mỗi đợt | own |
-| e2e-runner | sonnet | ✍️ (test) | E2E Playwright, cách ly test flaky, thu trace | ecc (description viết lại) |
+| Agent | Model | Ghi code | Vai trò |
+|-------|-------|----------|---------|
+| build-error-resolver | sonnet | ✍️ | Build/type/lint PHP, TS/Vue, Python |
+| react-build-resolver | sonnet | ✍️ | Build React/Next (Vite, webpack, hydration) |
+| go-build-resolver | sonnet | ✍️ | `go build`/`go vet`/golangci-lint |
+| refactor-cleaner | sonnet | ✍️ | Xóa dead code, test xanh sau mỗi đợt |
+| e2e-runner | sonnet | ✍️ (test) | E2E Playwright, cách ly test flaky, thu trace |
 
 ---
 
@@ -298,60 +295,60 @@ Skill là kiến thức được nạp khi cần. Chỉ phần **description** (
 
 ### Backend: Laravel
 
-| Skill | Nội dung | Nguồn |
-|-------|----------|-------|
-| `laravel-patterns` | **House style:** FormRequest → Controller → Service → Repository → Model, response theo `api-design`, `BusinessException` + Handler tập trung, `/api/v1`, Sanctum, RabbitMQ, Redis. `references/`: exception handler (Laravel 10 và 11+), RabbitMQ queues | own (viết lại) |
-| `laravel-tdd` | PHPUnit trên MySQL test DB, trait kiểm tra response, các case 401/403/404/422, test idempotency cho job | own (viết lại) |
-| `laravel-verification` | Kiểm tra trước PR/deploy: Pint, test + coverage, `composer audit`, migration, `queue:restart` | custom |
-| `laravel-security` | Sanctum cookie hoặc token, policy, validation, upload, rate limit, secret | custom |
-| `laravel-plugin-discovery` | Tìm và đánh giá package Laravel (cần MCP LaraPlugins.io) | custom |
+| Skill | Nội dung |
+|-------|----------|
+| `laravel-patterns` | **House style:** FormRequest → Controller → Service → Repository → Model, response theo `api-design`, `BusinessException` + Handler tập trung, `/api/v1`, Sanctum, RabbitMQ, Redis. `references/`: exception handler (Laravel 10 và 11+), RabbitMQ queues |
+| `laravel-tdd` | PHPUnit trên MySQL test DB, trait kiểm tra response, các case 401/403/404/422, test idempotency cho job |
+| `laravel-verification` | Kiểm tra trước PR/deploy: Pint, test + coverage, `composer audit`, migration, `queue:restart` |
+| `laravel-security` | Sanctum cookie hoặc token, policy, validation, upload, rate limit, secret |
+| `laravel-plugin-discovery` | Tìm và đánh giá package Laravel (cần MCP LaraPlugins.io) |
 
 ### Backend: API, dữ liệu, Go, NestJS
 
-| Skill | Nội dung | Nguồn |
-|-------|----------|-------|
-| `api-design` | **API contract:** project có sẵn thì phát hiện format và làm theo; project mới dùng `data` + `paging` + `meta`. Bảng mã lỗi, pagination, versioning, helper mẫu cho Laravel/NestJS/Go | own |
-| `mysql-patterns` | Schema, index, transaction, replication, connection pool | custom |
-| `redis-patterns` | Cấu trúc dữ liệu, cache, lock, rate limit, pub/sub | ecc |
-| `database-migrations` | Migration an toàn, zero-downtime | custom |
-| `golang-patterns` | Go idiomatic: error, interface, concurrency, package | custom (bản YAML đã sửa) |
-| `golang-testing` | Table-driven test, fuzz, benchmark, coverage | custom |
-| `nestjs-patterns` | Module, provider, DTO, guard, interceptor, config | ecc |
+| Skill | Nội dung |
+|-------|----------|
+| `api-design` | **API contract:** project có sẵn thì phát hiện format và làm theo; project mới dùng `data` + `paging` + `meta`. Bảng mã lỗi, pagination, versioning, helper mẫu cho Laravel/NestJS/Go |
+| `mysql-patterns` | Schema, index, transaction, replication, connection pool |
+| `redis-patterns` | Cấu trúc dữ liệu, cache, lock, rate limit, pub/sub |
+| `database-migrations` | Migration an toàn, zero-downtime |
+| `golang-patterns` | Go idiomatic: error, interface, concurrency, package |
+| `golang-testing` | Table-driven test, fuzz, benchmark, coverage |
+| `nestjs-patterns` | Module, provider, DTO, guard, interceptor, config |
 
 ### Chất lượng, quy trình, vận hành
 
-| Skill | Nội dung | Nguồn |
-|-------|----------|-------|
-| `scalability` | Bậc thang L1→L3 (1 VPS → nhiều node). `references/`: code-level, scale ngang, resilience, đo lường + k6 | own |
-| `debugging` | Quy trình tìm nguyên nhân gốc. `references/stack-tools.md`: Laravel, NestJS, Go, MySQL, Redis, RabbitMQ, browser, Docker | own |
-| `review-checklist` | Luật chung cho mọi reviewer: thang mức độ, bằng chứng, bảng output, cách gộp kết quả | own |
-| `feature-spec` | Template `spec.md` + `STATUS.md` | own |
-| `feature-docs` | Template tài liệu tính năng (tiếng Việt) | own |
-| `gitlab-mr` | Đặt tên nhánh, Conventional Commits, template MR, lệnh `glab` | own |
-| `tdd-workflow` | TDD chung, coverage 80% | ecc |
-| `verification-loop` | Kiểm tra 6 phase, báo cáo PASS/FAIL | ecc |
-| `e2e-testing` | Playwright, Page Object, CI, test flaky | custom |
-| `continuous-learning-v2` | Hệ thống instinct tự học (xem [mục 11](#11-continuous-learning)) | ecc |
+| Skill | Nội dung |
+|-------|----------|
+| `scalability` | Bậc thang L1→L3 (1 VPS → nhiều node). `references/`: code-level, scale ngang, resilience, đo lường + k6 |
+| `debugging` | Quy trình tìm nguyên nhân gốc. `references/stack-tools.md`: Laravel, NestJS, Go, MySQL, Redis, RabbitMQ, browser, Docker |
+| `review-checklist` | Luật chung cho mọi reviewer: thang mức độ, bằng chứng, bảng output, cách gộp kết quả |
+| `feature-spec` | Template `spec.md` + `STATUS.md` |
+| `feature-docs` | Template tài liệu tính năng (tiếng Việt) |
+| `gitlab-mr` | Đặt tên nhánh, Conventional Commits, template MR, lệnh `glab` |
+| `tdd-workflow` | TDD chung, coverage 80% |
+| `verification-loop` | Kiểm tra 6 phase, báo cáo PASS/FAIL |
+| `e2e-testing` | Playwright, Page Object, CI, test flaky |
+| `continuous-learning-v2` | Hệ thống instinct tự học (xem [mục 11](#11-continuous-learning)) |
 
 ### Frontend
 
-| Skill | Nội dung | Nguồn |
-|-------|----------|-------|
-| `vue-patterns` | Vue 3 Composition API, Pinia, Router | ecc |
-| `nuxt4-patterns` | Nuxt 4: hydration, route rules, `useFetch` | ecc |
-| `ui-to-vue` | Chuyển screenshot/design thành component Vue | ecc |
-| `react-patterns` | React 18/19: hook, server/client component, Suspense | ecc |
-| `react-performance` | Hơn 70 rule hiệu năng React/Next | ecc |
-| `react-testing` | Testing Library, Vitest/Jest, MSW, axe | ecc |
-| `nextjs-turbopack` | Next.js 16+, Turbopack | ecc |
-| `vite-patterns` | Config, plugin, env, proxy, build | ecc |
-| `frontend-patterns` | Pattern frontend chung | custom |
-| `frontend-a11y`, `accessibility` | A11y theo WCAG 2.2 AA | ecc |
-| `frontend-design-direction`, `design-system` | Định hướng thiết kế, token, audit UI | custom / ecc |
-| `motion-foundations`, `motion-patterns`, `motion-advanced` | Animation với `motion/react` | ecc |
-| `browser-qa` | Kiểm tra UI sau deploy bằng browser MCP | ecc |
+| Skill | Nội dung |
+|-------|----------|
+| `vue-patterns` | Vue 3 Composition API, Pinia, Router |
+| `nuxt4-patterns` | Nuxt 4: hydration, route rules, `useFetch` |
+| `ui-to-vue` | Chuyển screenshot/design thành component Vue |
+| `react-patterns` | React 18/19: hook, server/client component, Suspense |
+| `react-performance` | Hơn 70 rule hiệu năng React/Next |
+| `react-testing` | Testing Library, Vitest/Jest, MSW, axe |
+| `nextjs-turbopack` | Next.js 16+, Turbopack |
+| `vite-patterns` | Config, plugin, env, proxy, build |
+| `frontend-patterns` | Pattern frontend chung |
+| `frontend-a11y`, `accessibility` | A11y theo WCAG 2.2 AA |
+| `frontend-design-direction`, `design-system` | Định hướng thiết kế, token, audit UI |
+| `motion-foundations`, `motion-patterns`, `motion-advanced` | Animation với `motion/react` |
+| `browser-qa` | Kiểm tra UI sau deploy bằng browser MCP |
 
-> Các skill frontend hiện vẫn là bản ECC chung, chưa có house style riêng như Laravel.
+> Các skill frontend hiện vẫn là bản chung, chưa có house style riêng như Laravel.
 
 ---
 
@@ -434,11 +431,11 @@ Skill `scalability` đi theo 3 bậc:
 
 Claude ghi lại cách bạn làm việc theo từng project. Từ đó rút ra các **instinct**, là các ghi chú nhỏ có điểm tin cậy 0.3–0.9. Đầu mỗi session, những instinct mạnh nhất được nạp vào context. **Model không thay đổi**, đây là ghi chú tự động được chèn vào prompt.
 
-| Thành phần | Việc | Nguồn |
-|------------|------|-------|
-| `observe.sh` (PreToolUse/PostToolUse) | Ghi tool call vào `~/.local/share/ecc-homunculus/projects/<hash>/observations.jsonl` | ecc |
-| Observer (Haiku, **mặc định tắt**) | Phân tích observation thành instinct, 5 phút một lần | ecc |
-| `hooks/inject-instincts.py` (SessionStart) | Nạp instinct có confidence ≥ 0.5, tối đa 10, instinct của project xếp trước | own |
+| Thành phần | Việc |
+|------------|------|
+| `observe.sh` (PreToolUse/PostToolUse) | Ghi tool call vào `~/.local/share/ecc-homunculus/projects/<hash>/observations.jsonl` |
+| Observer (Haiku, **mặc định tắt**) | Phân tích observation thành instinct, 5 phút một lần |
+| `hooks/inject-instincts.py` (SessionStart) | Nạp instinct có confidence ≥ 0.5, tối đa 10, instinct của project xếp trước |
 
 - **Bật observer:** đặt `"observer": {"enabled": true}` trong `~/.local/share/ecc-homunculus/config.json`. Đừng sửa file config trong skill, vì cài lại sẽ bị ghi đè.
 - **Tắt hẳn:** `touch ~/.local/share/ecc-homunculus/disabled`.
@@ -477,7 +474,8 @@ my-claude-kit/
 ├── scripts/           merge-settings.py (hooks + deny ↔ settings.json)
 ├── docs/              continuous-learning.md
 ├── tests/             unittest: guard, inject, merge-settings, install, lint
-├── upstream/          bản ECC gốc để đối chiếu (không bao giờ được cài)
+├── upstream/          bản gốc của các file dựa trên mã nguồn mở, để đối chiếu (không cài)
+├── THIRD_PARTY_NOTICES.md  giấy phép và ghi nhận mã nguồn mở
 ├── AGENT_STANDARD.md  chuẩn viết agent/skill/command
 ├── lint.py            kiểm tra theo chuẩn
 └── install.sh
@@ -510,19 +508,19 @@ python3 -m unittest discover -s tests      # toàn bộ test phải xanh
 
 `lint.py` báo lỗi khi frontmatter YAML hỏng, tham chiếu tới skill hoặc agent không tồn tại, hay agent read-only có quyền ghi. Test `test_lint.py` chạy lint trên kit, nên lỗi này không lọt được vào commit.
 
-### Đối chiếu với ECC
+### Đối chiếu với bản gốc (`upstream/`)
 
 ```bash
 diff upstream/agents/go-reviewer.md agents/go-reviewer.md
 diff -r upstream/skills/laravel-patterns skills/laravel-patterns
 ```
 
-Khi ECC có bản vá đáng lấy: so bản ECC mới với `upstream/`, gộp phần đáng giá vào kit, rồi cập nhật `upstream/` sang bản mới.
+Khi dự án gốc có bản vá đáng lấy: so bản mới với `upstream/`, gộp phần đáng giá vào kit, rồi cập nhật `upstream/`.
 
-### Những tên "ECC" được giữ có chủ đích
+### Tên kỹ thuật cần giữ nguyên
 
-- Biến `ECC_*` (`ECC_INSTINCT_CONFIDENCE_THRESHOLD`, `ECC_SKIP_OBSERVE`…) và thư mục `~/.local/share/ecc-homunculus`. Code continuous-learning đọc đúng các tên này, đổi tên sẽ hỏng tính năng tự học và mất instinct đã lưu.
-- `upstream/` và các ghi chú nguồn gốc: đây là lịch sử, không phải thương hiệu.
+- Biến `ECC_*` (`ECC_INSTINCT_CONFIDENCE_THRESHOLD`, `ECC_SKIP_OBSERVE`…) và thư mục `~/.local/share/ecc-homunculus` là tên mà engine continuous-learning đọc. Đổi tên sẽ làm hỏng tính năng tự học và mất các instinct đã lưu.
+- `LEGACY_RULES_NS=ecc` chỉ để installer dọn namespace rules cũ trên máy.
 
 ---
 
@@ -538,3 +536,9 @@ Khi ECC có bản vá đáng lấy: so bản ECC mới với `upstream/`, gộp 
 | Không thấy "Active instincts" đầu session | Chưa có instinct ≥ 0.5 (`/instinct-status`), hoặc đang có file `disabled` |
 | Muốn quay về trạng thái trước khi cài | Khôi phục `~/.claude/settings.json.bak-<thời gian>` và `~/.claude/.backup/my-claude-kit-<thời gian>/` |
 | Máy công ty không muốn đụng `settings.json` | `./install.sh --no-hooks --no-claude-md` |
+
+---
+
+## 16. Giấy phép và ghi nhận
+
+Một số skill, agent và command trong kit được xây dựng dựa trên các dự án mã nguồn mở theo giấy phép MIT. Thông báo giấy phép đầy đủ nằm trong [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), và bản gốc được giữ trong `upstream/`.
