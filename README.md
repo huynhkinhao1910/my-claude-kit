@@ -1,6 +1,6 @@
 # my-claude-kit
 
-Personal Claude Code kit for a PHP/Laravel, Go and MySQL stack, plus the `/feature` delivery pipeline. Extracted from the ECC install in `~/.claude` (already partly customized) so the kit can evolve independently of upstream ECC.
+Personal Claude Code kit for a PHP/Laravel, Go, TypeScript/NestJS and MySQL stack, plus the `/feature` delivery pipeline. Extracted from the ECC install in `~/.claude` (already partly customized) so the kit can evolve independently of upstream ECC.
 
 ## Install
 
@@ -34,14 +34,15 @@ Origin legend: **own** = not in ECC, **custom** = modified from ECC, **ecc** = i
 | `/review` | laravel-reviewer, database-reviewer, security-reviewer, silent-failure-hunter, spec-verifier, go-reviewer, typescript-reviewer, python-reviewer, code-reviewer | own |
 | `/ship` | doc-writer | own |
 
-### Agents (18)
+### Agents (19)
 
 | Agent | Origin |
 |-------|--------|
 | requirement-analyst, test-writer, implementer, spec-verifier, commit-message-writer, doc-writer, laravel-reviewer | own |
 | planner, code-explorer, code-reviewer, build-error-resolver, security-reviewer, silent-failure-hunter, database-reviewer, go-reviewer, go-build-resolver, typescript-reviewer, python-reviewer | custom |
+| e2e-runner | ecc |
 
-`typescript-reviewer` and `python-reviewer` are kept because `/review` routes to them by file type (for example, Vue files).
+`typescript-reviewer` and `python-reviewer` are kept because `/review` routes to them by file type (for example, Vue or NestJS files). `e2e-runner` is referenced by `rules/typescript/testing.md`.
 
 ### Go commands
 
@@ -50,20 +51,21 @@ Origin legend: **own** = not in ECC, **custom** = modified from ECC, **ecc** = i
 | `/go-build`, `/go-test` | custom |
 | `/go-review` | ecc |
 
-### Skills (9)
+### Skills (13)
 
 - Laravel: `laravel-patterns`, `laravel-security`, `laravel-tdd`, `laravel-verification`, `laravel-plugin-discovery`
 - Go: `golang-patterns`, `golang-testing`
+- TypeScript/Node: `nestjs-patterns` (ecc), `backend-patterns`, `api-design`, `e2e-testing`
 - Data: `mysql-patterns`
 - Process: `tdd-workflow` (referenced by pipeline agents)
 
 ### Rules
 
-`rules/common`, `rules/php`, `rules/golang`. The php and golang rules link to `../common/`, so all three install into the same namespace.
+`rules/common`, `rules/php`, `rules/golang`, `rules/typescript`. The language rules link to `../common/`, so they all install into the same namespace.
 
 ## upstream/
 
-This folder holds the original ECC versions of the files above, plus `php-reviewer.md`, which ECC ships in place of `laravel-reviewer`. It is kept for reference only and is never installed. Compare a file against its ECC original with:
+This folder holds the original ECC versions of the files above, including `rules/typescript`, plus `php-reviewer.md`, which ECC ships in place of `laravel-reviewer`. It is kept for reference only and is never installed. Compare a file against its ECC original with:
 
 ```bash
 diff upstream/agents/go-reviewer.md agents/go-reviewer.md
