@@ -11,7 +11,7 @@ Agents live in `~/.claude/agents/`. Every agent follows `AGENT_STANDARD.md`: rev
 | Plan | planner | docs only |
 | Implement | test-writer → implementer | yes |
 | Fix build | build-error-resolver (PHP, TS, Vue, Python), go-build-resolver, react-build-resolver | yes |
-| Review | laravel-reviewer, typescript-reviewer, vue-reviewer, react-reviewer, go-reviewer, python-reviewer, code-reviewer (fallback), security-reviewer, database-reviewer, silent-failure-hunter | no |
+| Review | laravel-reviewer, typescript-reviewer, vue-reviewer, react-reviewer, go-reviewer, python-reviewer, code-reviewer (fallback), security-reviewer, database-reviewer, scalability-reviewer, silent-failure-hunter | no |
 | Verify | spec-verifier | no |
 | E2E | e2e-runner | tests only |
 | Ship | doc-writer, commit-message-writer | docs only |
@@ -24,6 +24,7 @@ Agents live in `~/.claude/agents/`. Every agent follows `AGENT_STANDARD.md`: rev
 4. Build, type or lint failure: use the matching build resolver.
 5. Changes touching auth, user input, uploads, payments, webhooks or secrets: add `security-reviewer`.
 6. Migrations, raw SQL, or queries over large tables: add `database-reviewer`.
+7. Queries, jobs, list/export endpoints, outbound HTTP clients or infra config: add `scalability-reviewer`, which judges behaviour at 10× load and on multiple nodes.
 
 ## Parallel Execution
 

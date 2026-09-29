@@ -14,6 +14,7 @@ Input: $ARGUMENTS
    - `*.py` → `python-reviewer`
    - migrations / raw SQL / new queries → `database-reviewer`
    - routes, auth, FormRequests, uploads, webhooks, payments, config → `security-reviewer`
+   - repositories / queries, jobs / consumers / queue code, list or export endpoints, outbound HTTP clients, schedulers, `config/{session,cache,filesystems,queue,database}.php`, `.env.example`, Go/Nest handlers and main → `scalability-reviewer`
    - anything else (CI, Docker, shell) → `code-reviewer`
    - always → `silent-failure-hunter`; `spec-verifier` if `spec.md` exists
 2. Launch the selected reviewers IN PARALLEL (one message, multiple Agent calls). Pass: slug, base branch, spec/plan paths.

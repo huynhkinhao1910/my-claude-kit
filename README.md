@@ -44,10 +44,10 @@ Origin legend: **own** = not in ECC, **custom** = modified from ECC, **ecc** = i
 | `/plan` | code-explorer, planner | custom |
 | `/implement` | test-writer, implementer, commit-message-writer | own |
 | `/verify` | build-error-resolver, implementer | own |
-| `/review` | laravel-reviewer, database-reviewer, security-reviewer, silent-failure-hunter, spec-verifier, go-reviewer, typescript-reviewer, python-reviewer, code-reviewer | own |
+| `/review` | laravel-reviewer, database-reviewer, security-reviewer, scalability-reviewer, silent-failure-hunter, spec-verifier, go-reviewer, typescript-reviewer, python-reviewer, code-reviewer | own |
 | `/ship` | doc-writer | own |
 
-### Agents (22)
+### Agents (23)
 
 | Agent | Origin |
 |-------|--------|
@@ -55,6 +55,7 @@ Origin legend: **own** = not in ECC, **custom** = modified from ECC, **ecc** = i
 | planner, code-explorer, code-reviewer, build-error-resolver, security-reviewer, silent-failure-hunter, database-reviewer, go-reviewer, go-build-resolver, typescript-reviewer, python-reviewer | custom |
 | e2e-runner | ecc (description rewritten to the standard) |
 | vue-reviewer, react-reviewer, react-build-resolver | ecc (description rewritten to the standard) |
+| scalability-reviewer | own |
 
 `/review` routes by file type: `*.vue` goes to `vue-reviewer`, `*.tsx`/`*.jsx` to `react-reviewer`, and plain `*.ts`/`*.js` (for example NestJS) to `typescript-reviewer`. `e2e-runner` is referenced by `rules/typescript/testing.md`.
 
@@ -78,6 +79,19 @@ The Laravel skills and `laravel-reviewer` encode one set of decisions instead of
 
 `laravel-reviewer` treats any break of a layer or envelope rule as MAJOR. A project can override a single rule in its own `CLAUDE.md`.
 
+### Scalability
+
+`skills/scalability` covers the path from one Docker Compose VPS (L1), to stateful services on their own hosts (L2), to several stateless app nodes behind a load balancer with a MySQL read replica (L3). `SKILL.md` holds the level table and the rules. `references/` holds the code for Laravel, NestJS and Go:
+
+| Reference | Covers |
+|-----------|--------|
+| `code-level.md` | keyset pagination, N+1, streaming, bulk writes, short transactions, cheap counts, caching, queue offload |
+| `horizontal.md` | stateless checklist, load balancer, MySQL connection budget, read replicas, workers, run-once schedulers, zero-downtime deploys |
+| `resilience.md` | timeouts, retries with jitter, circuit breakers, rate limits, idempotency keys, backpressure, graceful shutdown |
+| `observability-load-test.md` | SLOs, golden signals, the MySQL slow log, a k6 script, capacity math (Little's law, PHP-FPM, Node, Go) |
+
+`/review` calls `scalability-reviewer` only when a diff touches queries, jobs, list or export endpoints, outbound HTTP clients or infra config. Each finding must name the load at which the code breaks and the resource it exhausts.
+
 ### Continuous learning
 
 Full guide (Vietnamese): [docs/continuous-learning.md](docs/continuous-learning.md).
@@ -99,7 +113,7 @@ The observer is **off by default**. To turn it on, set `observer.enabled: true` 
 | `/go-review` | ecc |
 | `/vue-review`, `/react-review`, `/react-build`, `/react-test` | ecc |
 
-### Skills (38)
+### Skills (39)
 
 - Laravel: `laravel-patterns`, `laravel-security`, `laravel-tdd`, `laravel-verification`, `laravel-plugin-discovery`
 - Go: `golang-patterns`, `golang-testing`
@@ -112,6 +126,7 @@ The observer is **off by default**. To turn it on, set `observer.enabled: true` 
 - Browser QA: `browser-qa` (works with `e2e-testing` and `e2e-runner`)
 - Pipeline support: `review-checklist`, `feature-spec`, `feature-docs`, `gitlab-mr` (own, from `~/claude-audit/fixed`), `database-migrations` (custom), `tdd-workflow`, `verification-loop` (ecc)
 - Learning: `continuous-learning-v2` (ecc)
+- Scalability: `scalability` (own), see below
 
 Unmarked skills in the lists above are either identical to ECC (the front-end ones) or modified from ECC (the backend ones). `golang-patterns` uses the `~/claude-audit/fixed` version, because the version installed in `~/.claude` has invalid YAML frontmatter.
 
