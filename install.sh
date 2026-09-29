@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Install My Claude Kit into a Claude Code config dir.
-# Usage: ./install.sh [--dry-run] [--no-hooks]
-#   --dry-run   print what would happen, change nothing
-#   --no-hooks  copy files only, do not register hooks in settings.json
+# Usage: ./install.sh [--dry-run] [--no-hooks] [--no-claude-md]
+#   --dry-run       print what would happen, change nothing
+#   --no-hooks      copy files only; do not register hooks or deny rules in settings.json
+#   --no-claude-md  keep the machine's own ~/.claude/CLAUDE.md
 # Env:   CLAUDE_DIR (default ~/.claude), RULES_NS (default my-claude-kit),
 #        LEGACY_RULES_NS  old rule namespaces, space-separated; "." is the flat rules/ root
 #                         (default "ecc ."). Kit-owned dirs found there are retired.
@@ -17,10 +18,12 @@ LEGACY_RULES_NS="${LEGACY_RULES_NS:-ecc .}"
 RETIRE_DUPLICATES="${RETIRE_DUPLICATES-zh README.md}"
 DRY_RUN=0
 REGISTER_HOOKS=1
+INSTALL_CLAUDE_MD=1
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=1 ;;
     --no-hooks) REGISTER_HOOKS=0 ;;
+    --no-claude-md) INSTALL_CLAUDE_MD=0 ;;
     *) echo "unknown option: $arg" >&2; exit 2 ;;
   esac
 done
@@ -75,6 +78,12 @@ for ns in $LEGACY_RULES_NS; do
   done
 done
 install_item "$KIT_DIR/hooks" "$CLAUDE_DIR/hooks/my-claude-kit"
+if [ "$INSTALL_CLAUDE_MD" -eq 1 ]; then
+  install_item "$KIT_DIR/claude/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"
+fi
+
+# guard.sh and post-edit-format.sh silently allow everything without jq.
+command -v jq >/dev/null 2>&1 || echo "WARNING: jq not found. guard.sh cannot block secrets or destructive commands until jq is installed (brew install jq / apt install jq)." >&2
 
 if [ "$REGISTER_HOOKS" -eq 1 ]; then
   if ! command -v python3 >/dev/null 2>&1; then

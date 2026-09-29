@@ -1,4 +1,4 @@
-"""Tests for scripts/merge-settings.py (registers kit hooks in settings.json)."""
+"""Tests for scripts/merge-settings.py (registers kit hooks and deny rules in settings.json)."""
 import json
 import subprocess
 import sys
@@ -8,10 +8,11 @@ from pathlib import Path
 
 KIT_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = KIT_ROOT / "scripts" / "merge-settings.py"
+KIT_DENY = json.loads((KIT_ROOT / "settings" / "permissions.json").read_text())["deny"]
 
 USER_HOOKS = {
     "PreToolUse": [
-        {"matcher": "Bash", "hooks": [{"type": "command", "command": "~/.claude/hooks/guard.sh"}]}
+        {"matcher": "Bash", "hooks": [{"type": "command", "command": "~/.claude/hooks/my-audit.sh"}]}
     ],
     "PostToolUse": [
         {"matcher": "Edit|Write", "hooks": [{"type": "command", "command": "~/.claude/hooks/format.sh"}]}
@@ -50,12 +51,16 @@ class MergeSettingsTest(unittest.TestCase):
         result = self.run_script()
         self.assertEqual(result.returncode, 0, result.stderr)
         data = self.load()
-        self.assertEqual(len(commands(data, "PreToolUse")), 1)
-        self.assertEqual(len(commands(data, "PostToolUse")), 1)
+        pre, post = commands(data, "PreToolUse"), commands(data, "PostToolUse")
+        self.assertEqual(len(pre), 2)
+        self.assertIn("my-claude-kit/guard.sh", pre[0])          # guard runs before observe
+        self.assertIn("observe.sh\" pre", pre[1])
+        self.assertEqual(len(post), 2)
+        self.assertIn("my-claude-kit/post-edit-format.sh", post[0])
+        self.assertIn("observe.sh\" post", post[1])
         self.assertEqual(len(commands(data, "SessionStart")), 1)
-        self.assertIn("observe.sh\" pre", commands(data, "PreToolUse")[0])
-        self.assertIn("observe.sh\" post", commands(data, "PostToolUse")[0])
         self.assertIn("inject-instincts.py", commands(data, "SessionStart")[0])
+        self.assertEqual(data["permissions"]["deny"], KIT_DENY)
 
     def test_uses_absolute_claude_dir_in_commands(self):
         self.run_script()
@@ -66,9 +71,9 @@ class MergeSettingsTest(unittest.TestCase):
         self.run_script()
         data = self.load()
         self.assertEqual(data["theme"], "dark")
-        self.assertIn("~/.claude/hooks/guard.sh", commands(data, "PreToolUse"))
+        self.assertIn("~/.claude/hooks/my-audit.sh", commands(data, "PreToolUse"))
         self.assertIn("~/.claude/hooks/format.sh", commands(data, "PostToolUse"))
-        self.assertEqual(len(commands(data, "PreToolUse")), 2)
+        self.assertEqual(len(commands(data, "PreToolUse")), 3)
 
     def test_is_idempotent(self):
         self.settings.write_text(json.dumps({"hooks": USER_HOOKS}), encoding="utf-8")
@@ -84,8 +89,38 @@ class MergeSettingsTest(unittest.TestCase):
         self.settings.write_text(json.dumps(stale), encoding="utf-8")
         self.run_script()
         pre = commands(self.load(), "PreToolUse")
-        self.assertEqual(len(pre), 1)
-        self.assertIn("observe.sh\" pre", pre[0])
+        self.assertEqual(len(pre), 2)
+        self.assertEqual(sum("observe.sh" in c for c in pre), 1)
+        self.assertIn("observe.sh\" pre", pre[1])
+
+    def test_replaces_legacy_guard_and_format_hooks(self):
+        legacy = {"hooks": {
+            "PreToolUse": [{"matcher": "Read|Edit|Write|MultiEdit|Bash", "hooks": [
+                {"type": "command", "command": '"$HOME"/.claude/hooks/guard.sh'}]}],
+            "PostToolUse": [{"matcher": "Edit|Write|MultiEdit", "hooks": [
+                {"type": "command", "command": '"$HOME"/.claude/hooks/post-edit-format.sh'}]}],
+        }}
+        self.settings.write_text(json.dumps(legacy), encoding="utf-8")
+        self.run_script()
+        data = self.load()
+        self.assertEqual(sum("guard.sh" in c for c in commands(data, "PreToolUse")), 1)
+        self.assertEqual(sum("post-edit-format.sh" in c for c in commands(data, "PostToolUse")), 1)
+        self.assertNotIn('"$HOME"/.claude/hooks/guard.sh', commands(data, "PreToolUse"))
+
+    def test_merges_deny_rules_and_keeps_user_permissions(self):
+        user = {"permissions": {"allow": ["Bash(npm test)"], "deny": ["Bash(rm -rf *)", KIT_DENY[0]]}}
+        self.settings.write_text(json.dumps(user), encoding="utf-8")
+        self.run_script()
+        self.run_script()                                       # idempotent
+        perms = self.load()["permissions"]
+        self.assertEqual(perms["allow"], ["Bash(npm test)"])
+        self.assertEqual(perms["deny"][:2], ["Bash(rm -rf *)", KIT_DENY[0]])
+        self.assertEqual(sorted(perms["deny"]), sorted(set(["Bash(rm -rf *)", *KIT_DENY])))
+
+    def test_remove_keeps_permissions(self):
+        self.run_script()
+        self.run_script("--remove")
+        self.assertEqual(self.load()["permissions"]["deny"], KIT_DENY)
 
     def test_backs_up_existing_settings_before_change(self):
         original = json.dumps({"hooks": USER_HOOKS})
@@ -108,7 +143,7 @@ class MergeSettingsTest(unittest.TestCase):
         result = self.run_script("--remove")
         self.assertEqual(result.returncode, 0, result.stderr)
         data = self.load()
-        self.assertEqual(commands(data, "PreToolUse"), ["~/.claude/hooks/guard.sh"])
+        self.assertEqual(commands(data, "PreToolUse"), ["~/.claude/hooks/my-audit.sh"])
         self.assertEqual(commands(data, "PostToolUse"), ["~/.claude/hooks/format.sh"])
         self.assertNotIn("SessionStart", data["hooks"])
 

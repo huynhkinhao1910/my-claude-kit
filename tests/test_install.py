@@ -76,6 +76,24 @@ class InstallTest(unittest.TestCase):
         self.assertTrue((self.claude / "rules" / "ecc" / "common" / "old.md").exists())
         self.assertFalse((self.claude / "rules" / "my-claude-kit").exists())
 
+    def test_installs_claude_md_with_backup(self):
+        (self.claude / "CLAUDE.md").write_text("machine specific", encoding="utf-8")
+        self.install()
+        kit = (KIT_ROOT / "claude" / "CLAUDE.md").read_text(encoding="utf-8")
+        self.assertEqual((self.claude / "CLAUDE.md").read_text(encoding="utf-8"), kit)
+        backups = list((self.claude / ".backup").glob("my-claude-kit-*/CLAUDE.md"))
+        self.assertEqual(backups[0].read_text(encoding="utf-8"), "machine specific")
+
+    def test_no_claude_md_keeps_existing_file(self):
+        (self.claude / "CLAUDE.md").write_text("machine specific", encoding="utf-8")
+        self.install("--no-claude-md")
+        self.assertEqual((self.claude / "CLAUDE.md").read_text(encoding="utf-8"), "machine specific")
+
+    def test_installs_guard_hooks(self):
+        self.install()
+        for name in ("guard.sh", "post-edit-format.sh", "inject-instincts.py"):
+            self.assertTrue((self.claude / "hooks" / "my-claude-kit" / name).is_file(), name)
+
     def test_rejects_unknown_option(self):
         result = self.install("--bogus")
         self.assertEqual(result.returncode, 2)

@@ -5,14 +5,29 @@ My Claude Kit is a personal Claude Code kit for a PHP/Laravel, Go, TypeScript/Ne
 ## Install
 
 ```bash
-./install.sh --dry-run   # preview files and the resulting settings.json hooks
-./install.sh             # install into ~/.claude and register hooks
-./install.sh --no-hooks  # copy files only, leave settings.json untouched
+./install.sh --dry-run       # preview files, retired rules and the resulting settings.json hooks/deny rules
+./install.sh                 # install into ~/.claude, register hooks and deny rules
+./install.sh --no-hooks      # copy files only, leave settings.json untouched
+./install.sh --no-claude-md  # keep this machine's own ~/.claude/CLAUDE.md
 ```
 
 Any existing file is backed up to `~/.claude/.backup/my-claude-kit-<timestamp>/` before it is overwritten. `settings.json` is backed up to `settings.json.bak-<timestamp>` whenever hooks change. Restart Claude Code after installing.
 
-Requirements: `bash`, `git`, `python3`. The background observer also needs the `claude` CLI.
+Requirements: `bash`, `git`, `python3` and **`jq`**. Without `jq`, `guard.sh` cannot block anything, and the installer warns about it. The background observer also needs the `claude` CLI.
+
+### Safety layer
+
+| Piece | Installed to | What it does |
+|-------|--------------|--------------|
+| `hooks/guard.sh` | `~/.claude/hooks/my-claude-kit/` (PreToolUse) | Blocks reading or editing `.env*` and credential files, including via the shell; blocks destructive DB commands unless `--env=testing`, force pushes, direct pushes to `main`/`master`/`develop`, hard resets to them, and `rm -rf` of root, home or cwd |
+| `hooks/post-edit-format.sh` | same (PostToolUse) | Formats the edited file with the project's own Pint, ESLint, gofmt or ruff. It never blocks |
+| `settings/permissions.json` | merged into `permissions.deny` | Denies `Read`/`Edit` on `.env`, `.env.local`, `.env.production`, `.env.staging`, plus `php artisan db:wipe` |
+| `claude/CLAUDE.md` | `~/.claude/CLAUDE.md` (backed up first) | Global instructions: the caveman output style, and when to switch to full prose |
+
+- Existing `guard.sh`/`post-edit-format.sh` entries that point straight at `~/.claude/hooks/` are replaced by the kit copies, so they don't run twice.
+- The user's own allow and deny rules are kept. `merge-settings.py --remove` removes kit hooks only, and leaves permissions alone.
+- Because `guard.sh` blocks direct pushes to `main`, Claude cannot push this kit repo for you. Push it yourself with `! git push`.
+- `claude/CLAUDE.md` mentions the `graphify` skill, which is not part of the kit. On a machine without it, drop that section or install graphify separately.
 
 | Env | Default | Meaning |
 |-----|---------|---------|
@@ -152,7 +167,7 @@ python3 lint.py ~/.claude  # lint an installed config
 python3 -m unittest discover -s tests
 ```
 
-This runs 31 tests: `inject-instincts.py`, `merge-settings.py`, `install.sh` (rules namespace and retiring the legacy namespace), and a check that the kit passes `lint.py` with 0 errors.
+This runs the full suite: `inject-instincts.py`, `merge-settings.py` (hooks, legacy replacement, deny merge), `guard.sh` (what it blocks and what it allows), `install.sh` (rules namespace, retiring legacy rules, `CLAUDE.md`), and a check that the kit passes `lint.py` with 0 errors.
 
 ## upstream/
 
