@@ -1,6 +1,6 @@
 # my-claude-kit
 
-Personal Claude Code kit for a PHP/Laravel, Go, TypeScript/NestJS and MySQL stack, plus the `/feature` delivery pipeline. Extracted from the ECC install in `~/.claude` (already partly customized) so the kit can evolve independently of upstream ECC.
+Personal Claude Code kit for a PHP/Laravel, Go, TypeScript/NestJS, MySQL and Redis stack, plus the `/feature` delivery pipeline. Extracted from the ECC install in `~/.claude` (already partly customized) so the kit can evolve independently of upstream ECC.
 
 ## Install
 
@@ -51,12 +51,12 @@ Origin legend: **own** = not in ECC, **custom** = modified from ECC, **ecc** = i
 | `/go-build`, `/go-test` | custom |
 | `/go-review` | ecc |
 
-### Skills (13)
+### Skills (14)
 
 - Laravel: `laravel-patterns`, `laravel-security`, `laravel-tdd`, `laravel-verification`, `laravel-plugin-discovery`
 - Go: `golang-patterns`, `golang-testing`
 - TypeScript/Node: `nestjs-patterns` (ecc), `backend-patterns`, `api-design`, `e2e-testing`
-- Data: `mysql-patterns`
+- Data: `mysql-patterns`, `redis-patterns` (ecc)
 - Process: `tdd-workflow` (referenced by pipeline agents)
 
 ### Rules
