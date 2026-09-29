@@ -1,6 +1,6 @@
 # my-claude-kit
 
-Personal Claude Code kit for a PHP/Laravel, Go, TypeScript/NestJS, MySQL and Redis stack, plus the `/feature` delivery pipeline and continuous learning (instincts learned per project). Extracted from the ECC install in `~/.claude` (already partly customized) so the kit can evolve independently of upstream ECC.
+Personal Claude Code kit for a PHP/Laravel, Go, TypeScript/NestJS, MySQL and Redis backend stack with a Vue/Nuxt/React/Next front end, plus the `/feature` delivery pipeline and continuous learning (instincts learned per project). Extracted from the ECC install in `~/.claude` (already partly customized) so the kit can evolve independently of upstream ECC.
 
 ## Install
 
@@ -37,15 +37,16 @@ Origin legend: **own** = not in ECC, **custom** = modified from ECC, **ecc** = i
 | `/review` | laravel-reviewer, database-reviewer, security-reviewer, silent-failure-hunter, spec-verifier, go-reviewer, typescript-reviewer, python-reviewer, code-reviewer | own |
 | `/ship` | doc-writer | own |
 
-### Agents (19)
+### Agents (22)
 
 | Agent | Origin |
 |-------|--------|
 | requirement-analyst, test-writer, implementer, spec-verifier, commit-message-writer, doc-writer, laravel-reviewer | own |
 | planner, code-explorer, code-reviewer, build-error-resolver, security-reviewer, silent-failure-hunter, database-reviewer, go-reviewer, go-build-resolver, typescript-reviewer, python-reviewer | custom |
-| e2e-runner | ecc |
+| e2e-runner | ecc (description rewritten to the standard) |
+| vue-reviewer, react-reviewer, react-build-resolver | ecc (description rewritten to the standard) |
 
-`typescript-reviewer` and `python-reviewer` are kept because `/review` routes to them by file type (for example, Vue or NestJS files). `e2e-runner` is referenced by `rules/typescript/testing.md`.
+`/review` routes by file type: `*.vue` goes to `vue-reviewer`, `*.tsx`/`*.jsx` to `react-reviewer`, and plain `*.ts`/`*.js` (for example NestJS) to `typescript-reviewer`. `e2e-runner` is referenced by `rules/typescript/testing.md`.
 
 ### Continuous learning
 
@@ -60,24 +61,42 @@ Full guide (Vietnamese): [docs/continuous-learning.md](docs/continuous-learning.
 
 The observer is **off by default**. To turn it on, set `observer.enabled: true` in `~/.local/share/ecc-homunculus/config.json` (not in the skill's own `config.json`, which a reinstall overwrites). To stop recording and injection entirely, create `~/.local/share/ecc-homunculus/disabled`.
 
-### Go commands
+### Language commands
 
 | Command | Origin |
 |---------|--------|
 | `/go-build`, `/go-test` | custom |
 | `/go-review` | ecc |
+| `/vue-review`, `/react-review`, `/react-build`, `/react-test` | ecc |
 
-### Skills (14)
+### Skills (38)
 
 - Laravel: `laravel-patterns`, `laravel-security`, `laravel-tdd`, `laravel-verification`, `laravel-plugin-discovery`
 - Go: `golang-patterns`, `golang-testing`
 - TypeScript/Node: `nestjs-patterns` (ecc), `backend-patterns`, `api-design`, `e2e-testing`
 - Data: `mysql-patterns`, `redis-patterns` (ecc)
-- Process: `tdd-workflow` (referenced by pipeline agents)
+- Front end, Vue: `vue-patterns`, `nuxt4-patterns`, `ui-to-vue`
+- Front end, React: `react-patterns`, `react-performance`, `react-testing`, `nextjs-turbopack`
+- Front end, shared: `vite-patterns`, `frontend-patterns` (custom), `frontend-a11y`, `accessibility`
+- Design and motion: `frontend-design-direction` (custom), `design-system`, `motion-foundations`, `motion-patterns`, `motion-advanced`
+- Browser QA: `browser-qa` (works with `e2e-testing` and `e2e-runner`)
+- Pipeline support: `review-checklist`, `feature-spec`, `feature-docs`, `gitlab-mr` (own, from `~/claude-audit/fixed`), `database-migrations` (custom), `tdd-workflow`, `verification-loop` (ecc)
+- Learning: `continuous-learning-v2` (ecc)
+
+Unmarked skills in the lists above are either identical to ECC (the front-end ones) or modified from ECC (the backend ones). `golang-patterns` uses the `~/claude-audit/fixed` version, because the version installed in `~/.claude` has invalid YAML frontmatter.
 
 ### Rules
 
-`rules/common`, `rules/php`, `rules/golang`, `rules/typescript`. The language rules link to `../common/`, so they all install into the same namespace.
+`rules/common`, `rules/php`, `rules/golang`, `rules/typescript`, `rules/web` (custom), `rules/vue`, `rules/nuxt`, `rules/react`. The language rules link to `../common/`, so they all install into the same namespace.
+
+## Standard and lint
+
+Every agent, skill and command follows [AGENT_STANDARD.md](AGENT_STANDARD.md). `lint.py` enforces the standard and fails on missing skills or agents, broken frontmatter, and read-only agents that hold write tools.
+
+```bash
+python3 lint.py .          # lint the kit
+python3 lint.py ~/.claude  # lint an installed config
+```
 
 ## Tests
 
@@ -85,7 +104,7 @@ The observer is **off by default**. To turn it on, set `observer.enabled: true` 
 python3 -m unittest discover -s tests
 ```
 
-This runs 22 tests covering `inject-instincts.py` and `merge-settings.py`.
+This runs 23 tests: `inject-instincts.py`, `merge-settings.py`, and a check that the kit passes `lint.py` with 0 errors.
 
 ## upstream/
 

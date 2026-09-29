@@ -52,7 +52,7 @@ Example:
 - `use-immutable`: "when modifying state, use immutable patterns"
 - `avoid-classes`: "when designing modules, avoid class-based design"
 
-→ Creates: `functional-patterns` skill
+→ Creates a new skill named `functional-patterns` (example output)
 
 ### → Agent (Needs Depth/Isolation)
 When instincts describe complex, multi-step processes that benefit from isolation:

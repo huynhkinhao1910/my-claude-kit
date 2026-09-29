@@ -7,7 +7,9 @@ Input: $ARGUMENTS
 
 1. `git diff --name-only <base>...HEAD` → pick reviewers:
    - `*.php` → `laravel-reviewer`
-   - `*.ts|*.js|*.vue` → `typescript-reviewer`
+   - `*.vue`, Nuxt pages/composables/stores → `vue-reviewer`
+   - `*.tsx|*.jsx`, Next.js app/pages → `react-reviewer`
+   - `*.ts|*.js` (NestJS, Node, shared utils, or `.vue`/`.tsx` with non-trivial types) → `typescript-reviewer`
    - `*.go` → `go-reviewer`
    - `*.py` → `python-reviewer`
    - migrations / raw SQL / new queries → `database-reviewer`
