@@ -1,193 +1,540 @@
 # My Claude Kit
 
-My Claude Kit is a personal Claude Code kit for a PHP/Laravel, Go, TypeScript/NestJS, MySQL and Redis backend stack with a Vue/Nuxt/React/Next front end, plus the `/feature` delivery pipeline and continuous learning (instincts learned per project). Extracted from the ECC install in `~/.claude` (already partly customized) so the kit can evolve independently of upstream ECC.
+Bộ agent, skill, command, rules và hook cá nhân cho **Claude Code**. Kit được tách ra từ ECC (Everything Claude Code), rồi cắt gọn và viết lại theo đúng stack và cách làm việc của mình:
 
-## Install
+- **Backend:** PHP/Laravel, Go, TypeScript/NestJS, trên MySQL, Redis và RabbitMQ
+- **Frontend:** Vue 3 / Nuxt, React / Next.js
+- **Quy trình:** pipeline `/feature` (spec → plan → TDD → verify → review → ship qua GitLab MR), đường nhanh `/quick` và `/debug` cho việc nhỏ
+- **Chất lượng:** Laravel house style, một API contract thống nhất, scalability, lớp an toàn (chặn secret và lệnh phá hoại), tự học theo project (instincts)
+
+Kit tiến hóa độc lập với ECC. Bản ECC gốc của từng file được giữ trong `upstream/` để đối chiếu.
+
+---
+
+## Mục lục
+
+1. [Cài đặt](#1-cài-đặt)
+2. [Dùng hằng ngày: gặp việc gì thì gọi gì](#2-dùng-hằng-ngày-gặp-việc-gì-thì-gọi-gì)
+3. [Pipeline `/feature`](#3-pipeline-feature)
+4. [Đường nhanh: `/quick`, `/debug`, `/code-review`](#4-đường-nhanh-quick-debug-code-review)
+5. [Danh mục command](#5-danh-mục-command-28)
+6. [Danh mục agent](#6-danh-mục-agent-25)
+7. [Danh mục skill](#7-danh-mục-skill-39)
+8. [Rules](#8-rules)
+9. [House style và API contract](#9-house-style-và-api-contract)
+10. [Scalability](#10-scalability)
+11. [Continuous learning](#11-continuous-learning)
+12. [Lớp an toàn](#12-lớp-an-toàn)
+13. [Cấu trúc repo](#13-cấu-trúc-repo)
+14. [Tự custom kit](#14-tự-custom-kit)
+15. [Xử lý sự cố](#15-xử-lý-sự-cố)
+
+---
+
+## 1. Cài đặt
+
+### Yêu cầu
+
+| Công cụ | Bắt buộc | Dùng cho |
+|---------|----------|----------|
+| `bash`, `git`, `python3` | ✅ | installer, hooks, continuous learning |
+| `jq` | ✅ | `guard.sh` và `post-edit-format.sh`. **Thiếu `jq` thì guard không chặn được gì**, installer sẽ cảnh báo |
+| `glab` (đã chạy `glab auth login`) | cho `/ship` | mở GitLab MR. Thiếu thì `/ship` chỉ in MR description ra |
+| `claude` CLI | cho observer | observer tự học chạy bằng Haiku (mặc định tắt) |
+| `composer`/`pint`, `node`/`tsc`, `go`/`golangci-lint` | theo project | để `/verify`, `/quick`, `/build-fix` chạy được bước kiểm tra |
 
 ```bash
-./install.sh --dry-run       # preview files, retired rules and the resulting settings.json hooks/deny rules
-./install.sh                 # install into ~/.claude, register hooks and deny rules
-./install.sh --no-hooks      # copy files only, leave settings.json untouched
-./install.sh --no-claude-md  # keep this machine's own ~/.claude/CLAUDE.md
+brew install jq glab golangci-lint    # macOS
+glab auth login
 ```
 
-Any existing file is backed up to `~/.claude/.backup/my-claude-kit-<timestamp>/` before it is overwritten. `settings.json` is backed up to `settings.json.bak-<timestamp>` whenever hooks change. Restart Claude Code after installing.
+### Máy mới (nhà hoặc công ty)
 
-Requirements: `bash`, `git`, `python3` and **`jq`**. Without `jq`, `guard.sh` cannot block anything, and the installer warns about it. The background observer also needs the `claude` CLI.
+```bash
+git clone https://github.com/huynhkinhao1910/my-claude-kit.git ~/my-claude-kit
+cd ~/my-claude-kit
+./install.sh --dry-run      # xem trước: file nào được cài, rules nào bị dọn, hooks/deny sẽ thành gì
+./install.sh                # cài thật
+```
 
-### Safety layer
+Cài xong thì **khởi động lại Claude Code**.
 
-| Piece | Installed to | What it does |
-|-------|--------------|--------------|
-| `hooks/guard.sh` | `~/.claude/hooks/my-claude-kit/` (PreToolUse) | Blocks reading or editing `.env*` and credential files, including via the shell; blocks destructive DB commands unless `--env=testing`, force pushes, direct pushes to `main`/`master`/`develop`, hard resets to them, and `rm -rf` of root, home or cwd |
-| `hooks/post-edit-format.sh` | same (PostToolUse) | Formats the edited file with the project's own Pint, ESLint, gofmt or ruff. It never blocks |
-| `settings/permissions.json` | merged into `permissions.deny` | Denies `Read`/`Edit` on `.env`, `.env.local`, `.env.production`, `.env.staging`, plus `php artisan db:wipe` |
-| `claude/CLAUDE.md` | `~/.claude/CLAUDE.md` (backed up first) | Global instructions: the caveman output style, and when to switch to full prose |
+| Lệnh | Khi nào dùng |
+|------|--------------|
+| `./install.sh` | Cài đầy đủ: file, hooks, rule deny, `CLAUDE.md` global |
+| `./install.sh --no-hooks` | Chỉ copy file, không đụng `settings.json`. Hợp với máy công ty có chính sách chặt |
+| `./install.sh --no-claude-md` | Giữ `~/.claude/CLAUDE.md` riêng của máy đó |
+| `./install.sh --dry-run` | Xem trước, không ghi gì |
 
-- Existing `guard.sh`/`post-edit-format.sh` entries that point straight at `~/.claude/hooks/` are replaced by the kit copies, so they don't run twice.
-- The user's own allow and deny rules are kept. `merge-settings.py --remove` removes kit hooks only, and leaves permissions alone.
-- Because `guard.sh` blocks direct pushes to `main`, Claude cannot push this kit repo for you. Push it yourself with `! git push`.
-- `claude/CLAUDE.md` mentions the `graphify` skill, which is not part of the kit. On a machine without it, drop that section or install graphify separately.
+**Installer làm gì:**
+- **Backup trước khi ghi:** mọi file bị ghi đè được chuyển vào `~/.claude/.backup/my-claude-kit-<thời gian>/`. `settings.json` được backup thành `settings.json.bak-<thời gian>` mỗi khi có thay đổi.
+- **Rules:** cài vào `~/.claude/rules/my-claude-kit/`. Bản cũ của cùng rules nằm ở `rules/ecc/` hoặc `rules/` phẳng, cùng với `zh/` và các file `README.md` hướng dẫn của ECC, được chuyển vào backup để không bị nạp 2 lần. Rules không thuộc kit (`angular`, `python`…) được giữ nguyên.
+- **Hooks:** `guard.sh`, `post-edit-format.sh`, `observe.sh`, `inject-instincts.py` được đăng ký vào `settings.json`. Entry cũ trỏ tới `~/.claude/hooks/guard.sh` được thay thế. Hook riêng của bạn được giữ nguyên.
+- **Permissions:** rule deny của kit được gộp vào `permissions.deny`. Rule `allow`/`deny` riêng của bạn được giữ nguyên.
 
-| Env | Default | Meaning |
-|-----|---------|---------|
-| `CLAUDE_DIR` | `~/.claude` | Target config dir |
-| `RULES_NS` | `my-claude-kit` | Rules subfolder (`~/.claude/rules/<ns>/`) |
-| `LEGACY_RULES_NS` | `ecc .` | Old namespaces, space-separated, where `.` is the flat `rules/` root. Any rule dir the kit owns that is found there is moved to the backup so it does not load twice. Dirs the kit does not own (e.g. `angular`, `python`) are left alone |
-| `RETIRE_DUPLICATES` | `zh README.md` | Extra entries retired from the old namespaces: `zh` is a Chinese copy of `common`, and the `README.md` files are ECC install notes that Claude loads as rules. Set it to an empty string to keep them |
+| Biến môi trường | Mặc định | Ý nghĩa |
+|-----------------|----------|---------|
+| `CLAUDE_DIR` | `~/.claude` | Thư mục cài |
+| `RULES_NS` | `my-claude-kit` | Thư mục con của rules |
+| `LEGACY_RULES_NS` | `ecc .` | Các namespace cũ cần dọn (`.` là thư mục `rules/` gốc) |
+| `RETIRE_DUPLICATES` | `zh README.md` | Mục trùng lặp cần dọn thêm. Đặt `""` để giữ lại |
 
-## Naming
+### Cập nhật
 
-The kit is branded **My Claude Kit**. Some `ECC` names stay on purpose, because the code reads them by name:
+```bash
+cd ~/my-claude-kit && git pull && ./install.sh
+```
 
-- `ECC_*` env vars (`ECC_INSTINCT_CONFIDENCE_THRESHOLD`, `ECC_SKIP_OBSERVE`, …) and the `~/.local/share/ecc-homunculus` data dir. The continuous-learning scripts read these, and renaming them would break learning and orphan the instincts already stored.
-- `upstream/`, which holds the original ECC files for diffing.
-- Origin notes such as "from ECC". These record where a file came from and are not branding.
+Sửa kit **trong repo này**, đừng sửa thẳng `~/.claude`, vì lần cài sau sẽ ghi đè. Sửa ở máy nào thì commit và push từ máy đó, máy kia `git pull` rồi cài lại.
 
-## Contents
+### Gỡ bỏ
 
-Origin legend: **own** = not in ECC, **custom** = modified from ECC, **ecc** = identical to ECC.
+```bash
+python3 scripts/merge-settings.py --remove   # gỡ hook của kit, giữ permissions
+rm -rf ~/.claude/hooks/my-claude-kit ~/.claude/rules/my-claude-kit
+# khôi phục file cũ nếu cần: ~/.claude/.backup/my-claude-kit-<thời gian>/
+```
 
-### Pipeline (`/feature`)
+---
 
-`/feature` runs spec → plan → implement → verify → review → ship.
+## 2. Dùng hằng ngày: gặp việc gì thì gọi gì
 
-| Command | Agents used | Origin |
-|---------|-------------|--------|
-| `/feature` | orchestrates the phases below | own |
-| `/spec` | requirement-analyst | own |
-| `/plan` | code-explorer, planner | custom |
-| `/implement` | test-writer, implementer, commit-message-writer | own |
-| `/verify` | build-error-resolver, implementer | own |
-| `/review` | laravel-reviewer, database-reviewer, security-reviewer, scalability-reviewer, silent-failure-hunter, spec-verifier, go-reviewer, typescript-reviewer, python-reviewer, code-reviewer | own |
-| `/ship` | doc-writer | own |
+| Tình huống | Gọi | Ghi chú |
+|------------|-----|---------|
+| Tính năng mới, thay đổi lớn, có endpoint/bảng/migration mới | `/feature <slug> <yêu cầu>` | 4 cổng duyệt, toàn bộ tài liệu nằm trong `docs/features/<slug>/` |
+| Fix bug hoặc sửa nhỏ (≤ ~3 file, không đổi contract, không đụng auth/payment) | `/quick <mô tả>` | 1 cổng duyệt trước khi commit, tự đề nghị lên `/feature` nếu việc lớn hơn |
+| Có lỗi nhưng chưa rõ nguyên nhân (500, timeout, flaky, sai dữ liệu) | `/debug <triệu chứng>` | Chứng minh nguyên nhân gốc trước, sau đó mới sửa qua `/quick` |
+| Muốn review thay đổi đang làm trước khi commit | `/code-review` hoặc `/code-review main` | Chỉ đọc, in kết quả ngay trong chat |
+| Build, type hoặc lint đỏ | `/build-fix` | Tự chọn resolver đúng stack |
+| Chạy toàn bộ cổng chất lượng | `/verify` | format → static analysis → test → lint |
+| Dọn dead code sau khi ship | `/refactor-clean` | Xóa theo từng đợt đã duyệt, test xanh sau mỗi đợt |
+| Hết giờ, việc còn dở | `/save-session`, rồi mai `/resume-session` | Lưu vào `~/.claude/session-data/` |
+| Quyết định kiến trúc ảnh hưởng nhiều module | nhờ agent `architect` | Ghi ADR vào `docs/adr/` |
+| Endpoint hoặc job sẽ chịu tải | nhắc tới "scale" hoặc "chịu tải", hay dùng agent `scalability-reviewer` | Skill `scalability` |
+| Xem Claude đã học được gì ở project này | `/instinct-status` | Xem [mục 11](#11-continuous-learning) |
 
-### Agents (25)
+Không cần gọi skill bằng tay. Claude tự nạp skill theo ngữ cảnh: sửa file `.php` thì nạp `laravel-patterns`, nói "viết test" thì nạp `laravel-tdd`, nói "lỗi" thì nạp `debugging`.
 
-| Agent | Origin |
-|-------|--------|
-| requirement-analyst, test-writer, implementer, spec-verifier, commit-message-writer, doc-writer, laravel-reviewer | own |
-| planner, code-explorer, code-reviewer, build-error-resolver, security-reviewer, silent-failure-hunter, database-reviewer, go-reviewer, go-build-resolver, typescript-reviewer, python-reviewer | custom |
-| e2e-runner | ecc (description rewritten to the standard) |
-| vue-reviewer, react-reviewer, react-build-resolver | ecc (description rewritten to the standard) |
-| scalability-reviewer | own |
-| architect, refactor-cleaner | own (from `~/claude-audit/fixed`) |
+---
 
-`/review` routes by file type: `*.vue` goes to `vue-reviewer`, `*.tsx`/`*.jsx` to `react-reviewer`, and plain `*.ts`/`*.js` (for example NestJS) to `typescript-reviewer`. `e2e-runner` is referenced by `rules/typescript/testing.md`.
+## 3. Pipeline `/feature`
 
-### Laravel house style
+```
+/feature order-refund "Cho phép khách hoàn tiền đơn trong 7 ngày"
 
-The Laravel skills and `laravel-reviewer` encode one set of decisions instead of listing alternatives:
+ 1 Spec ──▶ Gate 1 ──▶ 2 Plan ──▶ Gate 2 ──▶ 3 Implement ──▶ 4 Verify ──▶ 5 Review ──▶ Gate 3 ──▶ 6 Ship ──▶ Final gate
+ requirement-          code-explorer          test-writer →      /verify      reviewers theo         doc-writer
+ analyst               + planner              implementer        (phải xanh)  loại file, chạy        + glab MR draft
+                                              (1 commit/task)                 song song
+```
 
-| Topic | Convention |
-|-------|------------|
-| App type | REST API for SPA/mobile clients |
-| Layers | FormRequest → Controller → Service → Repository (concrete class, no interface) → Model |
-| Service input | `$request->validated()` array |
-| Responses | Per `api-design`: an existing project keeps its format; a new project uses `{data, paging (lists), meta}` with errors as `data: null` + `meta.message/code/errors` |
-| Errors | `BusinessException` + central handler; no `try/catch` in controllers |
-| Routes | `/api/v1`, controllers in `Api\V1` |
-| Auth | Sanctum: SPA cookie or personal access token |
-| Queue / cache | RabbitMQ (`vladimir-yuldashev/laravel-queue-rabbitmq`) / Redis |
-| Tests | PHPUnit on a MySQL test database, envelope assertions, real repositories |
-| Formatting | Pint |
-| Git | `main` only, `feature/*` branches, merged through an MR |
+| Phase | Command | Agent | File tạo ra | Cổng |
+|-------|---------|-------|-------------|------|
+| 1 Spec | `/spec <slug> <yêu cầu>` | requirement-analyst | `spec.md` (user story, AC Gherkin có ID, edge case, câu hỏi mở) | **Gate 1:** bạn trả lời câu hỏi / "approve spec" |
+| 2 Plan | `/plan <slug>` | code-explorer, planner | `plan.md` (cách làm, data model, API contract, task T1..Tn gắn với AC) | **Gate 2:** "approve plan", sau đó tạo nhánh `feature/<slug>` |
+| 3 Implement | `/implement <slug>` | test-writer → implementer, commit-message-writer | test + code, mỗi task 1 commit | dừng lại khi lệch plan |
+| 4 Verify | `/verify <slug>` | build-error-resolver / implementer nếu đỏ | — | phải xanh |
+| 5 Review | `/review <slug>` | các reviewer theo loại file (bảng dưới) + spec-verifier | `review.md` (bảng finding + verdict) | **Gate 3:** "fix all" / "fix #1,#3" / "approve" |
+| 6 Ship | `/ship <slug>` | doc-writer | `feature-doc.md` (tiếng Việt), `mr-description.md` (tiếng Anh) | **Final gate:** "ship", sau đó push và mở MR draft |
 
-`laravel-reviewer` treats any break of a layer or API-format rule as MAJOR. A project can override a single rule in its own `CLAUDE.md`.
+- **Tiếp tục khi bị gián đoạn:** chạy lại `/feature <slug>`. Command đọc `docs/features/<slug>/STATUS.md` và tiếp tục từ phase đang dở.
+- **Không bao giờ bỏ qua cổng**, kể cả khi bạn không trả lời.
+- **`/plan` không có slug** (ad-hoc): lập kế hoạch cho một việc lẻ, không ghi file, và chờ bạn xác nhận.
 
-### Scalability
+**`/review` chọn reviewer theo file thay đổi:**
 
-`skills/scalability` covers the path from one Docker Compose VPS (L1), to stateful services on their own hosts (L2), to several stateless app nodes behind a load balancer with a MySQL read replica (L3). `SKILL.md` holds the level table and the rules. `references/` holds the code for Laravel, NestJS and Go:
+| File thay đổi | Reviewer |
+|---------------|----------|
+| `*.php` | laravel-reviewer |
+| `*.vue`, pages/composables/stores của Nuxt | vue-reviewer |
+| `*.tsx`, `*.jsx`, Next.js | react-reviewer |
+| `*.ts`, `*.js` (NestJS, Node) | typescript-reviewer |
+| `*.go` | go-reviewer |
+| `*.py` | python-reviewer |
+| migration, raw SQL, query mới | database-reviewer |
+| routes, auth, FormRequest, upload, webhook, payment, config | security-reviewer |
+| repository/query, job/queue, endpoint list/export, HTTP client, scheduler, config session/cache/queue/database | scalability-reviewer |
+| còn lại (CI, Docker, shell) | code-reviewer |
+| luôn chạy | silent-failure-hunter; spec-verifier nếu có `spec.md` |
 
-| Reference | Covers |
-|-----------|--------|
-| `code-level.md` | keyset pagination, N+1, streaming, bulk writes, short transactions, cheap counts, caching, queue offload |
-| `horizontal.md` | stateless checklist, load balancer, MySQL connection budget, read replicas, workers, run-once schedulers, zero-downtime deploys |
-| `resilience.md` | timeouts, retries with jitter, circuit breakers, rate limits, idempotency keys, backpressure, graceful shutdown |
-| `observability-load-test.md` | SLOs, golden signals, the MySQL slow log, a k6 script, capacity math (Little's law, PHP-FPM, Node, Go) |
+Mức độ theo `review-checklist`: **BLOCKER** (sai hành vi, mất dữ liệu, lỗ hổng bảo mật) · **MAJOR** (bug khả năng cao, thiếu test, vỡ ở tải 10×) · **MINOR** · **NIT**. Verdict `CHANGES REQUIRED` khi còn BLOCKER hoặc MAJOR chưa được giải trình.
 
-`/review` calls `scalability-reviewer` only when a diff touches queries, jobs, list or export endpoints, outbound HTTP clients or infra config. Each finding must name the load at which the code breaks and the resource it exhausts.
+---
+
+## 4. Đường nhanh: `/quick`, `/debug`, `/code-review`
+
+### `/quick <việc>`
+
+```
+0 Kiểm tra độ lớn ─▶ 1 Tái hiện (test fail) ─▶ 2 Sửa ─▶ 3 Verify phần bị đụng ─▶ 4 Review nhẹ ─▶ 5 STOP: commit | fix #n | lên /feature
+```
+
+- **Tự đề nghị chuyển sang `/feature`** khi: quá ~3 file hoặc ~150 dòng; có endpoint, bảng, migration, queue hoặc contract mới; đụng auth, payment, phân quyền hay xóa dữ liệu; yêu cầu còn mơ hồ.
+- **Chỉ có 1 cổng**, nằm ngay trước khi commit. Không bao giờ push. Không commit thẳng lên `main`: nếu đang ở `main` thì tạo `fix/<slug>` trước.
+
+### `/debug <triệu chứng>`
+
+Làm theo skill `debugging`: tái hiện → đọc bằng chứng → thu hẹp → mỗi lần 1 giả thuyết → chứng minh. Sau đó **dừng lại, chưa sửa code**, và báo cáo:
+
+```
+Symptom:     POST /api/v1/orders trả 500 ~2% lúc cao điểm
+Evidence:    log request_id=... "Deadlock found"; INNODB STATUS: orders và products bị khóa ngược thứ tự
+Root cause:  OrderService khóa orders trước products, RefundService khóa ngược lại
+Fix:         khóa theo cùng thứ tự (products → orders) ở cả 2 service
+Regression:  test chạy place() và refund() song song, cả hai đều thành công
+```
+
+Bạn chọn `fix` (chạy `/quick` với báo cáo này), `dig deeper`, hoặc `stop`. Các thao tác thay đổi trạng thái (xóa cache, retry job, purge queue, kill query, sửa dữ liệu) đều phải được bạn đồng ý.
+
+### `/code-review [base]`
+
+Không truyền base thì review thay đổi chưa commit. Có base thì review `base...HEAD`. Reviewer được chọn giống `/review`, kết quả gộp thành một bảng, in ngay trong chat. **Chỉ đọc**: muốn sửa thì dùng `/quick fix #n …`.
+
+---
+
+## 5. Danh mục command (28)
+
+Nguồn gốc: **own** = viết riêng · **custom** = sửa từ ECC · **ecc** = giữ nguyên ECC.
+
+### Pipeline
+
+| Command | Tham số | Việc | Nguồn |
+|---------|---------|------|-------|
+| `/feature` | `<slug> <yêu cầu \| file \| URL>` | Điều phối toàn bộ pipeline, có resume | own |
+| `/spec` | `<slug> <yêu cầu>` | Phase 1: `spec.md` + Gate 1 | own |
+| `/plan` | `<slug>` hoặc `<việc lẻ>` | Phase 2: `plan.md` + Gate 2; không có slug thì là kế hoạch ad-hoc | custom |
+| `/implement` | `<slug> [T1,T2 \| all]` | Phase 3: TDD từng task, mỗi task 1 commit | own |
+| `/verify` | `[slug]` | Cổng chất lượng theo stack | own |
+| `/review` | `<slug> [base=main]` | Phase 4: review song song → `review.md` + Gate 3 | own |
+| `/ship` | `<slug>` | Phase 5: tài liệu + MR description, push, mở MR draft | own |
+
+### Hằng ngày
+
+| Command | Tham số | Việc | Nguồn |
+|---------|---------|------|-------|
+| `/quick` | `<việc>` | Sửa nhỏ, 1 cổng duyệt | own |
+| `/debug` | `<triệu chứng \| lỗi \| request_id>` | Tìm nguyên nhân gốc, dừng lại báo cáo | own |
+| `/code-review` | `[base]` | Review local, chỉ đọc | own |
+| `/build-fix` | `[path \| lỗi]` | Sửa build/type/lint bằng resolver đúng stack | own |
+| `/refactor-clean` | `[path]` | Xóa dead code theo đợt an toàn | own |
+| `/save-session` | — | Lưu trạng thái phiên làm việc | ecc |
+| `/resume-session` | `[file]` | Mở lại phiên đã lưu gần nhất | ecc |
+
+### Theo ngôn ngữ
+
+| Command | Việc | Nguồn |
+|---------|------|-------|
+| `/go-build` | Sửa lỗi `go build`/`go vet`/lint (go-build-resolver) | custom |
+| `/go-test` | TDD cho Go, table-driven test, coverage | custom |
+| `/go-review` | Review Go (go-reviewer) | ecc |
+| `/vue-review` | Review Vue (vue-reviewer + typescript-reviewer) | ecc |
+| `/react-review` | Review React (react-reviewer + typescript-reviewer) | ecc |
+| `/react-build` | Sửa build React/Next (react-build-resolver) | ecc |
+| `/react-test` | TDD cho React bằng Testing Library | ecc |
 
 ### Continuous learning
 
-Full guide (Vietnamese): [docs/continuous-learning.md](docs/continuous-learning.md).
+| Command | Việc | Nguồn |
+|---------|------|-------|
+| `/instinct-status` | Xem instinct của project và global, kèm confidence | custom |
+| `/projects` | Danh sách project đã ghi nhận | custom |
+| `/evolve` | Gom instinct thành skill/command/agent | custom |
+| `/promote` | Nâng instinct của project lên global | custom |
+| `/prune` | Xóa instinct pending quá 30 ngày | custom |
+| `/instinct-export` | Xuất instinct ra file | custom |
+| `/instinct-import` | Nhập instinct từ file hoặc URL | custom |
 
-| Piece | What it does | Origin |
-|-------|--------------|--------|
-| `skills/continuous-learning-v2` | `observe.sh` records tool calls per project; the Haiku observer turns them into instincts | ecc |
-| `hooks/inject-instincts.py` | SessionStart hook: injects instincts with confidence ≥ 0.5 (max 10, project first) | own |
-| `scripts/merge-settings.py` | Registers or removes (`--remove`) the kit hooks in `settings.json` and leaves the user's own hooks alone | own |
-| `/instinct-status`, `/instinct-export`, `/instinct-import`, `/evolve`, `/promote`, `/projects`, `/prune` | Manage instincts | custom (paths point to `~/.claude/skills`) |
+---
 
-The observer is **off by default**. To turn it on, set `observer.enabled: true` in `~/.local/share/ecc-homunculus/config.json` (not in the skill's own `config.json`, which a reinstall overwrites). To stop recording and injection entirely, create `~/.local/share/ecc-homunculus/disabled`.
+## 6. Danh mục agent (25)
 
-### Daily commands
+Cột **Ghi code**: ✍️ = được sửa code · 📄 = chỉ ghi tài liệu của mình · 👁 = chỉ đọc. Model theo `AGENT_STANDARD.md`: `opus` cho việc cần phán đoán, `sonnet` cho việc làm theo pattern, `haiku` cho việc máy móc.
 
-| Command | Use |
-|---------|-----|
-| `/quick <task>` | A small fix or change: failing test → fix → verify → one language reviewer → **one gate** before commit. It escalates to `/feature` above ~3 files, or for a new contract, auth or payments |
-| `/debug <symptom>` | Root cause first, using the `debugging` skill (reproduce → narrow → one hypothesis at a time → prove). Stops with Symptom / Evidence / Root cause / Fix / Regression before any code changes |
-| `/code-review [base]` | Read-only review of uncommitted changes (or branch vs base), routed to the kit reviewers, findings inline |
-| `/build-fix` | Runs the failing build, type or lint step per stack, and delegates to `build-error-resolver`, `react-build-resolver` or `go-build-resolver` |
-| `/refactor-clean [path]` | Dead-code removal with `refactor-cleaner`, in approved safe batches, tests green after each |
-| `/save-session`, `/resume-session` | Hand off a half-done task to the next session (`~/.claude/session-data/`) |
+### Pipeline
 
-`architect` (opus) records cross-cutting decisions as ADRs in `docs/adr/`. `/code-review` replaces ECC's command of the same name, and the installer backs up the old one.
+| Agent | Model | Ghi code | Vai trò | Nguồn |
+|-------|-------|----------|---------|-------|
+| requirement-analyst | opus | 📄 | Yêu cầu thô → `spec.md` testable (AC có ID, edge case, câu hỏi mở) | own |
+| code-explorer | sonnet | 👁 | Vẽ bản đồ một tính năng đang có (entry point, luồng, tầng, file:line) | custom |
+| planner | opus | 📄 | Spec đã duyệt → `plan.md` với task T1..Tn gắn với AC | custom |
+| architect | opus | 📄 | Quyết định kiến trúc xuyên module → ADR trong `docs/adr/` | own |
+| test-writer | sonnet | ✍️ | Viết test FAIL trước (TDD red), xác nhận fail đúng lý do | own |
+| implementer | sonnet | ✍️ | Làm đúng 1 task tới khi test xanh, rồi format và static analysis | own |
+| spec-verifier | sonnet | 👁 | Bảng truy vết AC → test, chấm chất lượng test | own |
+| doc-writer | sonnet | 📄 | Tài liệu tính năng (tiếng Việt) + MR description (tiếng Anh) từ diff thật | own |
+| commit-message-writer | haiku | 👁 | Viết Conventional Commit từ `git diff --staged` | own |
 
-### Language commands
+### Review (đều read-only)
 
-| Command | Origin |
-|---------|--------|
-| `/go-build`, `/go-test` | custom |
-| `/go-review` | ecc |
-| `/vue-review`, `/react-review`, `/react-build`, `/react-test` | ecc |
+| Agent | Model | Phạm vi | Nguồn |
+|-------|-------|---------|-------|
+| laravel-reviewer | opus | Laravel theo house style: tầng, API format, exception, Sanctum, RabbitMQ, transaction, test PHPUnit. Vi phạm `[layers]`/`[api]` là **MAJOR** | own |
+| security-reviewer | opus | OWASP: IDOR, mass assignment, injection, XSS, secret, upload, SSRF, webhook, race trên tiền/tồn kho | custom |
+| scalability-reviewer | opus | Tải ở 10× và chạy nhiều node. Mỗi finding phải nêu mức tải sẽ vỡ và tài nguyên bị cạn | own |
+| database-reviewer | sonnet | MySQL/InnoDB + Eloquent: index, query plan, N+1, migration bảng lớn, lock | custom |
+| typescript-reviewer | sonnet | TS/JS/NestJS/Node: type, async, boundary | custom |
+| vue-reviewer | sonnet | Vue 3/Nuxt: Composition API, reactivity, Pinia/Router | ecc (description viết lại) |
+| react-reviewer | sonnet | React/Next: hook, render, server/client boundary, a11y | ecc (description viết lại) |
+| go-reviewer | sonnet | Go: idiom, error, context, concurrency, rò rỉ tài nguyên | custom |
+| python-reviewer | sonnet | Python: typing, error handling, async | custom |
+| silent-failure-hunter | sonnet | Exception bị nuốt, catch rỗng, fallback che lỗi, thiếu timeout/rollback | custom |
+| code-reviewer | sonnet | Dự phòng cho shell, SQL script, YAML/CI, Dockerfile, config | custom |
 
-### Skills (39)
+### Sửa lỗi build và bảo trì
 
-- Laravel: `laravel-patterns`, `laravel-security`, `laravel-tdd`, `laravel-verification`, `laravel-plugin-discovery`
-- Go: `golang-patterns`, `golang-testing`
-- API contract: `api-design` (own). It detects and follows an existing project's format, and gives new projects `data` + `paging` + `meta`
-- TypeScript/Node: `nestjs-patterns` (ecc), `e2e-testing`
-- Data: `mysql-patterns`, `redis-patterns` (ecc)
-- Front end, Vue: `vue-patterns`, `nuxt4-patterns`, `ui-to-vue`
-- Front end, React: `react-patterns`, `react-performance`, `react-testing`, `nextjs-turbopack`
-- Front end, shared: `vite-patterns`, `frontend-patterns` (custom), `frontend-a11y`, `accessibility`
-- Design and motion: `frontend-design-direction` (custom), `design-system`, `motion-foundations`, `motion-patterns`, `motion-advanced`
-- Browser QA: `browser-qa` (works with `e2e-testing` and `e2e-runner`)
-- Pipeline support: `review-checklist`, `feature-spec`, `feature-docs`, `gitlab-mr` (own, from `~/claude-audit/fixed`), `database-migrations` (custom), `tdd-workflow`, `verification-loop` (ecc)
-- Learning: `continuous-learning-v2` (ecc)
-- Scalability: `scalability` (own), see below
-- Debugging: `debugging` (own), used by `/debug` and `/quick`
+| Agent | Model | Ghi code | Vai trò | Nguồn |
+|-------|-------|----------|---------|-------|
+| build-error-resolver | sonnet | ✍️ | Build/type/lint PHP, TS/Vue, Python | custom |
+| react-build-resolver | sonnet | ✍️ | Build React/Next (Vite, webpack, hydration) | ecc (description viết lại) |
+| go-build-resolver | sonnet | ✍️ | `go build`/`go vet`/golangci-lint | custom |
+| refactor-cleaner | sonnet | ✍️ | Xóa dead code, test xanh sau mỗi đợt | own |
+| e2e-runner | sonnet | ✍️ (test) | E2E Playwright, cách ly test flaky, thu trace | ecc (description viết lại) |
 
-Unmarked skills in the lists above are either identical to ECC (the front-end ones) or modified from ECC (the backend ones). `golang-patterns` uses the `~/claude-audit/fixed` version, because the version installed in `~/.claude` has invalid YAML frontmatter.
+---
 
-### Rules
+## 7. Danh mục skill (39)
 
-`rules/common`, `rules/php`, `rules/golang`, `rules/typescript`, `rules/web` (custom), `rules/vue`, `rules/nuxt`, `rules/react`. The language rules link to `../common/`, so they all install into the same namespace.
+Skill là kiến thức được nạp khi cần. Chỉ phần **description** (1-2 câu) luôn nằm trong context. Nội dung đầy đủ chỉ được đọc khi skill liên quan tới việc đang làm.
 
-Only `rules/common` loads in every session, about 17k chars. Every other rule dir has `paths:` frontmatter and loads only when matching files are in play, so `rules/web` loads only for Vue, React, CSS, Blade and `resources/js` work. The `common` rules reference only agents that ship in the kit, and model routing follows `AGENT_STANDARD.md`.
+### Backend: Laravel
 
-## Standard and lint
+| Skill | Nội dung | Nguồn |
+|-------|----------|-------|
+| `laravel-patterns` | **House style:** FormRequest → Controller → Service → Repository → Model, response theo `api-design`, `BusinessException` + Handler tập trung, `/api/v1`, Sanctum, RabbitMQ, Redis. `references/`: exception handler (Laravel 10 và 11+), RabbitMQ queues | own (viết lại) |
+| `laravel-tdd` | PHPUnit trên MySQL test DB, trait kiểm tra response, các case 401/403/404/422, test idempotency cho job | own (viết lại) |
+| `laravel-verification` | Kiểm tra trước PR/deploy: Pint, test + coverage, `composer audit`, migration, `queue:restart` | custom |
+| `laravel-security` | Sanctum cookie hoặc token, policy, validation, upload, rate limit, secret | custom |
+| `laravel-plugin-discovery` | Tìm và đánh giá package Laravel (cần MCP LaraPlugins.io) | custom |
 
-Every agent, skill and command follows [AGENT_STANDARD.md](AGENT_STANDARD.md). `lint.py` enforces the standard and fails on missing skills or agents, broken frontmatter, and read-only agents that hold write tools.
+### Backend: API, dữ liệu, Go, NestJS
 
-```bash
-python3 lint.py .          # lint the kit
-python3 lint.py ~/.claude  # lint an installed config
+| Skill | Nội dung | Nguồn |
+|-------|----------|-------|
+| `api-design` | **API contract:** project có sẵn thì phát hiện format và làm theo; project mới dùng `data` + `paging` + `meta`. Bảng mã lỗi, pagination, versioning, helper mẫu cho Laravel/NestJS/Go | own |
+| `mysql-patterns` | Schema, index, transaction, replication, connection pool | custom |
+| `redis-patterns` | Cấu trúc dữ liệu, cache, lock, rate limit, pub/sub | ecc |
+| `database-migrations` | Migration an toàn, zero-downtime | custom |
+| `golang-patterns` | Go idiomatic: error, interface, concurrency, package | custom (bản YAML đã sửa) |
+| `golang-testing` | Table-driven test, fuzz, benchmark, coverage | custom |
+| `nestjs-patterns` | Module, provider, DTO, guard, interceptor, config | ecc |
+
+### Chất lượng, quy trình, vận hành
+
+| Skill | Nội dung | Nguồn |
+|-------|----------|-------|
+| `scalability` | Bậc thang L1→L3 (1 VPS → nhiều node). `references/`: code-level, scale ngang, resilience, đo lường + k6 | own |
+| `debugging` | Quy trình tìm nguyên nhân gốc. `references/stack-tools.md`: Laravel, NestJS, Go, MySQL, Redis, RabbitMQ, browser, Docker | own |
+| `review-checklist` | Luật chung cho mọi reviewer: thang mức độ, bằng chứng, bảng output, cách gộp kết quả | own |
+| `feature-spec` | Template `spec.md` + `STATUS.md` | own |
+| `feature-docs` | Template tài liệu tính năng (tiếng Việt) | own |
+| `gitlab-mr` | Đặt tên nhánh, Conventional Commits, template MR, lệnh `glab` | own |
+| `tdd-workflow` | TDD chung, coverage 80% | ecc |
+| `verification-loop` | Kiểm tra 6 phase, báo cáo PASS/FAIL | ecc |
+| `e2e-testing` | Playwright, Page Object, CI, test flaky | custom |
+| `continuous-learning-v2` | Hệ thống instinct tự học (xem [mục 11](#11-continuous-learning)) | ecc |
+
+### Frontend
+
+| Skill | Nội dung | Nguồn |
+|-------|----------|-------|
+| `vue-patterns` | Vue 3 Composition API, Pinia, Router | ecc |
+| `nuxt4-patterns` | Nuxt 4: hydration, route rules, `useFetch` | ecc |
+| `ui-to-vue` | Chuyển screenshot/design thành component Vue | ecc |
+| `react-patterns` | React 18/19: hook, server/client component, Suspense | ecc |
+| `react-performance` | Hơn 70 rule hiệu năng React/Next | ecc |
+| `react-testing` | Testing Library, Vitest/Jest, MSW, axe | ecc |
+| `nextjs-turbopack` | Next.js 16+, Turbopack | ecc |
+| `vite-patterns` | Config, plugin, env, proxy, build | ecc |
+| `frontend-patterns` | Pattern frontend chung | custom |
+| `frontend-a11y`, `accessibility` | A11y theo WCAG 2.2 AA | ecc |
+| `frontend-design-direction`, `design-system` | Định hướng thiết kế, token, audit UI | custom / ecc |
+| `motion-foundations`, `motion-patterns`, `motion-advanced` | Animation với `motion/react` | ecc |
+| `browser-qa` | Kiểm tra UI sau deploy bằng browser MCP | ecc |
+
+> Các skill frontend hiện vẫn là bản ECC chung, chưa có house style riêng như Laravel.
+
+---
+
+## 8. Rules
+
+Rules là các chỉ dẫn "luôn tuân theo". Rules nằm trong `~/.claude/rules/my-claude-kit/`:
+
+| Thư mục | Nạp khi | Nội dung |
+|---------|---------|----------|
+| `common/` | **mọi session** (~17k ký tự) | coding style, testing, security, git workflow, roster agent, chọn model, code review |
+| `php/` | khi làm file PHP | style, pattern, security, testing PHP |
+| `golang/` | khi làm file Go | idiom Go |
+| `typescript/` | khi làm file TS/JS | type, response type theo `api-design` |
+| `web/` | khi làm file `.vue`, `.tsx`, `.css`, Blade, `resources/js`… | design quality, performance, security web |
+| `vue/`, `nuxt/`, `react/` | khi làm file tương ứng | luật riêng từng framework |
+
+Mọi rule ngoài `common/` đều có frontmatter `paths:`, nên chỉ được nạp khi đụng tới file khớp.
+
+---
+
+## 9. House style và API contract
+
+### Laravel
+
+| Chủ đề | Quy ước |
+|--------|---------|
+| Kiểu app | REST API cho SPA/mobile |
+| Tầng | FormRequest → Controller → Service → Repository (class cụ thể, không interface) → Model |
+| Input vào Service | `$request->validated()` dạng array |
+| Query | Chỉ nằm trong Repository (ngoại lệ duy nhất: route model binding) |
+| Transaction | Nằm ở Service; job/event dispatch bằng `afterCommit()` |
+| Lỗi | `BusinessException(message, status, code, errors)` + Handler tập trung; không `try/catch` trong controller |
+| Route | `/api/v1`, controller trong `Api\V1` |
+| Auth | Sanctum: SPA cookie hoặc personal access token |
+| Queue / cache | RabbitMQ (`vladimir-yuldashev/laravel-queue-rabbitmq`) / Redis |
+| Test | PHPUnit, MySQL test DB riêng, repository thật |
+| Format | Pint |
+| Git | `main` only, nhánh `feature/*` / `fix/*`, merge qua MR |
+
+Project nào muốn khác một luật thì ghi rõ trong `CLAUDE.md` của project đó. Luật của project thắng luật của kit.
+
+### API contract (`api-design`)
+
+1. **Project đã có API:** phát hiện format đang dùng (grep helper, đọc 2-3 endpoint và test), rồi **làm theo đúng format đó**. Không thêm format thứ hai. Muốn đổi format thì phải lên version mới (`/api/v2`).
+2. **Project mới:**
+
+```json
+// list
+{ "data": [ ... ], "paging": { "current_page": 1, "per_page": 20, "total": 42, "last_page": 3 }, "meta": { "message": "OK", "request_id": "01J9..." } }
+// detail / create (không có paging)
+{ "data": { "id": 12 }, "meta": { "message": "Order created", "request_id": "01J9..." } }
+// lỗi
+{ "data": null, "meta": { "message": "Validation failed", "code": "validation_failed", "errors": { "quantity": ["..."] }, "request_id": "01J9..." } }
 ```
 
-## Tests
+Key dùng `snake_case`. `meta.code` là chuỗi ổn định cho client dựa vào. Ngày giờ theo ISO-8601. Tiền tính bằng số nguyên theo đơn vị nhỏ nhất. Bảng mã lỗi chuẩn nằm trong `skills/api-design/SKILL.md`.
 
-```bash
-python3 -m unittest discover -s tests
+---
+
+## 10. Scalability
+
+Skill `scalability` đi theo 3 bậc:
+
+| Level | Hình dạng | Lên level khi |
+|-------|-----------|---------------|
+| **L1** | 1 VPS, Docker Compose: app, worker, MySQL, Redis, RabbitMQ | CPU > 70% kéo dài, swap, p95 vượt SLO |
+| **L2** | Tách MySQL, rồi Redis/RabbitMQ ra host riêng | App là nút cổ chai, worker giành tài nguyên với app |
+| **L3** | Nhiều app node stateless sau load balancer, MySQL read replica, worker riêng | Đọc quá nhiều so với ghi, deploy không được rớt request |
+
+| Reference | Nội dung |
+|-----------|----------|
+| `code-level.md` | Keyset pagination, N+1, streaming, bulk write, transaction ngắn, count rẻ, cache, đẩy việc sang queue |
+| `horizontal.md` | Stateless, load balancer, ngân sách connection MySQL, read replica, worker, scheduler chạy 1 lần, deploy không downtime |
+| `resilience.md` | Timeout, retry + jitter, circuit breaker, rate limit, idempotency key, backpressure, graceful shutdown |
+| `observability-load-test.md` | SLO, golden signals, slow query log, script k6, tính capacity |
+
+---
+
+## 11. Continuous learning
+
+Claude ghi lại cách bạn làm việc theo từng project. Từ đó rút ra các **instinct**, là các ghi chú nhỏ có điểm tin cậy 0.3–0.9. Đầu mỗi session, những instinct mạnh nhất được nạp vào context. **Model không thay đổi**, đây là ghi chú tự động được chèn vào prompt.
+
+| Thành phần | Việc | Nguồn |
+|------------|------|-------|
+| `observe.sh` (PreToolUse/PostToolUse) | Ghi tool call vào `~/.local/share/ecc-homunculus/projects/<hash>/observations.jsonl` | ecc |
+| Observer (Haiku, **mặc định tắt**) | Phân tích observation thành instinct, 5 phút một lần | ecc |
+| `hooks/inject-instincts.py` (SessionStart) | Nạp instinct có confidence ≥ 0.5, tối đa 10, instinct của project xếp trước | own |
+
+- **Bật observer:** đặt `"observer": {"enabled": true}` trong `~/.local/share/ecc-homunculus/config.json`. Đừng sửa file config trong skill, vì cài lại sẽ bị ghi đè.
+- **Tắt hẳn:** `touch ~/.local/share/ecc-homunculus/disabled`.
+- **Mang sang máy khác:** `/instinct-export`, rồi `/instinct-import`. Project ID tính từ git remote nên khớp giữa các máy.
+
+Hướng dẫn chi tiết: [docs/continuous-learning.md](docs/continuous-learning.md).
+
+---
+
+## 12. Lớp an toàn
+
+| Thành phần | Cài vào | Việc |
+|------------|---------|------|
+| `hooks/guard.sh` | `~/.claude/hooks/my-claude-kit/` (PreToolUse) | **Chặn** đọc/sửa `.env*` và file credential (kể cả qua shell); lệnh DB phá hoại (trừ khi có `--env=testing`); force push; push thẳng lên `main`/`master`/`develop`; `reset --hard` về các nhánh đó; `rm -rf` ở root, home, cwd |
+| `hooks/post-edit-format.sh` | như trên (PostToolUse) | Format file vừa sửa bằng Pint, ESLint, gofmt hoặc ruff của project. Không bao giờ chặn |
+| `settings/permissions.json` | gộp vào `permissions.deny` | Chặn `Read`/`Edit` trên `.env`, `.env.local`, `.env.production`, `.env.staging`, và `php artisan db:wipe` |
+| `claude/CLAUDE.md` | `~/.claude/CLAUDE.md` | Chỉ dẫn global: style trả lời ngắn gọn, và khi nào viết đầy đủ |
+
+- `.env.example`, `.env.testing` và `migrate:fresh --env=testing` được cho qua.
+- **Guard chặn push thẳng lên `main`**, nên Claude không push hộ repo kit này được. Tự push bằng `! git push`.
+- `claude/CLAUDE.md` có nhắc skill `graphify`, là skill không nằm trong kit. Máy nào không có thì bỏ đoạn đó đi.
+
+---
+
+## 13. Cấu trúc repo
+
+```
+my-claude-kit/
+├── agents/            25 agent (.md, frontmatter: name, description, tools, model, skills)
+├── commands/          28 slash command
+├── skills/            39 skill (SKILL.md + references/)
+├── rules/             common + php, golang, typescript, web, vue, nuxt, react
+├── hooks/             guard.sh, post-edit-format.sh, inject-instincts.py
+├── settings/          permissions.json (deny rules)
+├── claude/            CLAUDE.md global
+├── scripts/           merge-settings.py (hooks + deny ↔ settings.json)
+├── docs/              continuous-learning.md
+├── tests/             unittest: guard, inject, merge-settings, install, lint
+├── upstream/          bản ECC gốc để đối chiếu (không bao giờ được cài)
+├── AGENT_STANDARD.md  chuẩn viết agent/skill/command
+├── lint.py            kiểm tra theo chuẩn
+└── install.sh
 ```
 
-This runs the full suite: `inject-instincts.py`, `merge-settings.py` (hooks, legacy replacement, deny merge), `guard.sh` (what it blocks and what it allows), `install.sh` (rules namespace, retiring legacy rules, `CLAUDE.md`), and a check that the kit passes `lint.py` with 0 errors.
+---
 
-## upstream/
+## 14. Tự custom kit
 
-This folder holds the original ECC versions of the files above, including `rules/typescript`, plus `php-reviewer.md`, which ECC ships in place of `laravel-reviewer`. It is kept for reference only and is never installed. Compare a file against its ECC original with:
+### Thêm hoặc sửa một skill
+
+1. Tạo `skills/<tên>/SKILL.md`. Frontmatter gồm `name` (trùng tên thư mục), `description` (≤ 1024 ký tự, nói rõ **khi nào dùng** và **khi nào không**; dùng `>-` nếu có dấu `: `), và `origin: My Claude Kit`.
+2. Phần thân gồm các mục **When to Use → How It Works → Examples**, tối đa 500 dòng. Chi tiết dài tách ra `references/*.md`.
+3. Chỉ ghi kiến thức và quy trình, không đặt persona. Persona thuộc về agent.
+
+### Thêm một agent
+
+- Frontmatter: `name`, `description` (≤ 400 ký tự, có "Use when…" và "Do NOT use for…"), `tools` (**luôn ghi rõ**, nếu bỏ trống sẽ có mọi quyền), `model`, `skills`.
+- Reviewer, verifier, explorer **không** có `Write`/`Edit`.
+- Thân theo thứ tự: Role → Inputs → Process → Output (format cố định) → Never.
+- Thêm agent vào roster trong `AGENT_STANDARD.md` và `rules/common/agents.md` trong cùng một thay đổi.
+
+### Kiểm tra trước khi commit
+
+```bash
+python3 lint.py .                          # 0 ERROR là bắt buộc
+python3 -m unittest discover -s tests      # toàn bộ test phải xanh
+./install.sh --dry-run
+```
+
+`lint.py` báo lỗi khi frontmatter YAML hỏng, tham chiếu tới skill hoặc agent không tồn tại, hay agent read-only có quyền ghi. Test `test_lint.py` chạy lint trên kit, nên lỗi này không lọt được vào commit.
+
+### Đối chiếu với ECC
 
 ```bash
 diff upstream/agents/go-reviewer.md agents/go-reviewer.md
+diff -r upstream/skills/laravel-patterns skills/laravel-patterns
 ```
+
+Khi ECC có bản vá đáng lấy: so bản ECC mới với `upstream/`, gộp phần đáng giá vào kit, rồi cập nhật `upstream/` sang bản mới.
+
+### Những tên "ECC" được giữ có chủ đích
+
+- Biến `ECC_*` (`ECC_INSTINCT_CONFIDENCE_THRESHOLD`, `ECC_SKIP_OBSERVE`…) và thư mục `~/.local/share/ecc-homunculus`. Code continuous-learning đọc đúng các tên này, đổi tên sẽ hỏng tính năng tự học và mất instinct đã lưu.
+- `upstream/` và các ghi chú nguồn gốc: đây là lịch sử, không phải thương hiệu.
+
+---
+
+## 15. Xử lý sự cố
+
+| Triệu chứng | Kiểm tra / sửa |
+|-------------|----------------|
+| Skill, agent hoặc command mới không xuất hiện | Khởi động lại Claude Code; `python3 lint.py ~/.claude` phải ra 0 ERROR |
+| `guard.sh` không chặn gì | Máy chưa có `jq` → `brew install jq` |
+| Claude báo "BLOCKED by My Claude Kit guard" | Đó là guard đang hoạt động. Push `main` thì tự push bằng `! git push`; đụng DB test thì thêm `--env=testing` |
+| `/ship` không mở được MR | Chưa có `glab` hoặc chưa `glab auth login` |
+| Rules bị nạp 2 lần | Chạy `./install.sh` để dọn namespace cũ; kiểm tra `ls ~/.claude/rules` |
+| Không thấy "Active instincts" đầu session | Chưa có instinct ≥ 0.5 (`/instinct-status`), hoặc đang có file `disabled` |
+| Muốn quay về trạng thái trước khi cài | Khôi phục `~/.claude/settings.json.bak-<thời gian>` và `~/.claude/.backup/my-claude-kit-<thời gian>/` |
+| Máy công ty không muốn đụng `settings.json` | `./install.sh --no-hooks --no-claude-md` |
