@@ -1,6 +1,6 @@
 ---
 name: laravel-verification
-description: "Verification loop for Laravel projects: env checks, linting, static analysis, tests with coverage, security scans, and deployment readiness."
+description: "Pre-PR and pre-deploy verification for Laravel APIs in the house style: env and Composer checks, Pint, PHPUnit on the MySQL test database with coverage, composer audit, migration review, cache warmup, and RabbitMQ worker and scheduler checks. Use before opening a PR, after a large refactor or dependency upgrade, or before deploying. Do NOT use for writing tests (laravel-tdd) or non-Laravel projects."
 origin: My Claude Kit
 ---
 
@@ -49,18 +49,14 @@ composer validate
 composer dump-autoload -o
 ```
 
-## Phase 2: Linting and Static Analysis
+## Phase 2: Formatting
 
 ```bash
-vendor/bin/pint --test
-vendor/bin/phpstan analyse
+vendor/bin/pint --test          # gate: must pass
+vendor/bin/pint --dirty         # fix only the files you changed
 ```
 
-If your project uses Psalm instead of PHPStan:
-
-```bash
-vendor/bin/psalm
-```
+Pint is the house formatter. Run PHPStan/Larastan only when the project already ships a `phpstan.neon`, and never add it as part of an unrelated change.
 
 ## Phase 3: Tests and Coverage
 
@@ -74,13 +70,14 @@ Coverage (CI):
 XDEBUG_MODE=coverage php artisan test --coverage
 ```
 
-CI example (format -> static analysis -> tests):
+CI example (format -> tests):
 
 ```bash
 vendor/bin/pint --test
-vendor/bin/phpstan analyse
-XDEBUG_MODE=coverage php artisan test --coverage
+XDEBUG_MODE=coverage php artisan test --coverage --min=80
 ```
+
+Tests run against the MySQL test database from `phpunit.xml` (see `laravel-tdd`), never SQLite.
 
 ## Phase 4: Security and Dependency Checks
 
@@ -118,6 +115,7 @@ php artisan view:cache
 ```bash
 php artisan schedule:list
 php artisan queue:failed
+php artisan queue:restart        # after every deploy: RabbitMQ workers keep old code in memory
 ```
 
 If Horizon is used:
@@ -153,7 +151,6 @@ composer --version
 php artisan --version
 composer validate
 vendor/bin/pint --test
-vendor/bin/phpstan analyse
 php artisan test
 composer audit
 php artisan migrate --pretend
@@ -167,8 +164,7 @@ CI-style pipeline:
 composer validate
 composer dump-autoload -o
 vendor/bin/pint --test
-vendor/bin/phpstan analyse
-XDEBUG_MODE=coverage php artisan test --coverage
+XDEBUG_MODE=coverage php artisan test --coverage --min=80
 composer audit
 php artisan migrate --pretend
 php artisan optimize:clear

@@ -1,283 +1,286 @@
 ---
 name: laravel-tdd
-description: Test-driven development for Laravel with PHPUnit and Pest, factories, database testing, fakes, and coverage targets.
+description: >-
+  Test-driven development for Laravel APIs in the house style: PHPUnit only, a MySQL test database, feature tests
+  against /api/v1 that assert the success/message/data/errors envelope, Sanctum auth, the 401/403/404/422 paths,
+  service tests with real repositories, and Queue/Mail/Http fakes for RabbitMQ jobs and external calls. Use when
+  writing or fixing tests for a Laravel endpoint, service, repository, job or policy, or reproducing a Laravel bug
+  with a failing test. Trigger on "viết test", "thêm test cho API", "test fail", "reproduce bug". Do NOT use for
+  Pest, Blade/Inertia pages, front-end tests or non-Laravel PHP.
 origin: My Claude Kit
 ---
 
-# Laravel TDD Workflow
+# Laravel TDD (house style)
 
-Test-driven development for Laravel applications using PHPUnit and Pest with 80%+ coverage (unit + feature).
+Every behaviour change ships with a PHPUnit test that fails first. Tests exercise the API the way a client does and assert the envelope, not the implementation.
 
 ## When to Use
 
-- New features or endpoints in Laravel
-- Bug fixes or refactors
-- Testing Eloquent models, policies, jobs, and notifications
-- Prefer Pest for new tests unless the project already standardizes on PHPUnit
+- New endpoint or change to an existing one
+- Bug fix: reproduce with a failing test before touching code
+- New service rule, repository query, job or policy
 
 ## How It Works
 
-### Red-Green-Refactor Cycle
+1. **Red:** write the feature test for the endpoint, covering the success path and at least one failure path. Run it and confirm it fails for the right reason (404 route missing, or an assertion on the envelope), not because of a typo.
+2. **Green:** implement through the layers (FormRequest → Controller → Service → Repository) until it passes.
+3. **Refactor:** keep the test green while you clean up, then run `vendor/bin/pint --test`.
 
-1. Write a failing test
-2. Implement the minimal change to pass
-3. Refactor while keeping tests green
+| Layer | Test type | Location | Database |
+|-------|-----------|----------|----------|
+| Endpoint (routing, validation, auth, envelope) | Feature | `tests/Feature/Api/V1/<Resource>/` | yes |
+| Service business rules | Feature-style with real repositories | `tests/Feature/Services/` | yes |
+| Repository queries that are complex (filters, locking, aggregates) | Feature | `tests/Feature/Repositories/` | yes |
+| Pure PHP (value objects, calculators) | Unit | `tests/Unit/` | no |
 
-### Test Layers
-
-- **Unit**: pure PHP classes, value objects, services
-- **Feature**: HTTP endpoints, auth, validation, policies
-- **Integration**: database + queue + external boundaries
-
-Choose layers based on scope:
-
-- Use **Unit** tests for pure business logic and services.
-- Use **Feature** tests for HTTP, auth, validation, and response shape.
-- Use **Integration** tests when validating DB/queues/external services together.
-
-### Database Strategy
-
-- `RefreshDatabase` for most feature/integration tests (runs migrations once per test run, then wraps each test in a transaction when supported; in-memory databases may re-migrate per test)
-- `DatabaseTransactions` when the schema is already migrated and you only need per-test rollback
-- `DatabaseMigrations` when you need a full migrate/fresh for every test and can afford the sh
-
-Use `RefreshDatabase` as the default for tests that touch the database: for databases with transaction support, it runs migrations once per test run (via a static flag) and wraps each test in a transaction; for `:memory:` SQLite or connections without transactions, it migrates before each test. Use `DatabaseTransactions` when the schema is already migrated and you only need per-test rollbacks.
-
-### Testing Framework Choice
-
-- Default to **Pest** for new tests when available.
-- Use **PHPUnit** only if the project already standardizes on it or requires PHPUnit-specific tooling.
+Repositories are concrete classes, so tests use the real ones against MySQL. Mock only things outside the app: HTTP APIs, payment gateways, mail.
 
 ## Examples
 
-### PHPUnit Example
+### Test database: MySQL, not SQLite
+
+Production runs MySQL, and SQLite behaves differently on JSON columns, collation, `lockForUpdate`, strict mode and foreign keys. Use a dedicated database:
+
+```xml
+<!-- phpunit.xml -->
+<php>
+    <env name="APP_ENV" value="testing"/>
+    <env name="DB_CONNECTION" value="mysql"/>
+    <env name="DB_DATABASE" value="app_testing"/>
+    <env name="CACHE_DRIVER" value="array"/>
+    <env name="QUEUE_CONNECTION" value="sync"/>
+    <env name="MAIL_MAILER" value="array"/>
+    <env name="SESSION_DRIVER" value="array"/>
+</php>
+```
+
+- Create the database once with `CREATE DATABASE app_testing`. Never point tests at the dev or prod database.
+- Every test that touches the database uses `RefreshDatabase`. It migrates once per run and wraps each test in a transaction.
+- On Laravel 11+ the cache variable is `CACHE_STORE`.
+
+### Envelope assertions: `tests/Concerns/AssertsApiResponse.php`
 
 ```php
-use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
+<?php
 
-final class ProjectControllerTest extends TestCase
+namespace Tests\Concerns;
+
+use Illuminate\Testing\TestResponse;
+
+trait AssertsApiResponse
 {
-    use RefreshDatabase;
-
-    public function test_owner_can_create_project(): void
+    protected function assertApiSuccess(TestResponse $response, int $status = 200): TestResponse
     {
-        $user = User::factory()->create();
+        return $response->assertStatus($status)
+            ->assertJsonStructure(['success', 'message', 'data', 'errors'])
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('errors', null);
+    }
 
-        $response = $this->actingAs($user)->postJson('/api/projects', [
-            'name' => 'New Project',
-        ]);
+    protected function assertApiPaginated(TestResponse $response): TestResponse
+    {
+        return $this->assertApiSuccess($response)
+            ->assertJsonStructure(['meta' => ['current_page', 'per_page', 'total', 'last_page']]);
+    }
 
-        $response->assertCreated();
-        $this->assertDatabaseHas('projects', ['name' => 'New Project']);
+    protected function assertApiError(TestResponse $response, int $status, ?array $errorFields = null): TestResponse
+    {
+        $response->assertStatus($status)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('data', null);
+
+        if ($errorFields !== null) {
+            $response->assertJsonStructure(['errors' => $errorFields]);
+        }
+
+        return $response;
     }
 }
 ```
 
-### Feature Test Example (HTTP Layer)
+Use this trait in `Tests\TestCase`, so every test gets these helpers.
+
+### Feature test for an endpoint
 
 ```php
-use App\Models\Project;
+<?php
+
+namespace Tests\Feature\Api\V1\Orders;
+
+use App\Jobs\SendOrderConfirmation;
+use App\Models\Order;
+use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
-
-final class ProjectIndexTest extends TestCase
-{
-    use RefreshDatabase;
-
-    public function test_projects_index_returns_paginated_results(): void
-    {
-        $user = User::factory()->create();
-        Project::factory()->count(3)->for($user)->create();
-
-        $response = $this->actingAs($user)->getJson('/api/projects');
-
-        $response->assertOk();
-        $response->assertJsonStructure(['success', 'data', 'error', 'meta']);
-    }
-}
-```
-
-### Pest Example
-
-```php
-use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
-use function Pest\Laravel\actingAs;
-use function Pest\Laravel\assertDatabaseHas;
-
-uses(RefreshDatabase::class);
-
-test('owner can create project', function () {
-    $user = User::factory()->create();
-
-    $response = actingAs($user)->postJson('/api/projects', [
-        'name' => 'New Project',
-    ]);
-
-    $response->assertCreated();
-    assertDatabaseHas('projects', ['name' => 'New Project']);
-});
-```
-
-### Feature Test Pest Example (HTTP Layer)
-
-```php
-use App\Models\Project;
-use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
-use function Pest\Laravel\actingAs;
-
-uses(RefreshDatabase::class);
-
-test('projects index returns paginated results', function () {
-    $user = User::factory()->create();
-    Project::factory()->count(3)->for($user)->create();
-
-    $response = actingAs($user)->getJson('/api/projects');
-
-    $response->assertOk();
-    $response->assertJsonStructure(['success', 'data', 'error', 'meta']);
-});
-```
-
-### Factories and States
-
-- Use factories for test data
-- Define states for edge cases (archived, admin, trial)
-
-```php
-$user = User::factory()->state(['role' => 'admin'])->create();
-```
-
-### Database Testing
-
-- Use `RefreshDatabase` for clean state
-- Keep tests isolated and deterministic
-- Prefer `assertDatabaseHas` over manual queries
-
-### Persistence Test Example
-
-```php
-use App\Models\Project;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
-
-final class ProjectRepositoryTest extends TestCase
-{
-    use RefreshDatabase;
-
-    public function test_project_can_be_retrieved_by_slug(): void
-    {
-        $project = Project::factory()->create(['slug' => 'alpha']);
-
-        $found = Project::query()->where('slug', 'alpha')->firstOrFail();
-
-        $this->assertSame($project->id, $found->id);
-    }
-}
-```
-
-### Fakes for Side Effects
-
-- `Bus::fake()` for jobs
-- `Queue::fake()` for queued work
-- `Mail::fake()` and `Notification::fake()` for notifications
-- `Event::fake()` for domain events
-
-```php
 use Illuminate\Support\Facades\Queue;
-
-Queue::fake();
-
-dispatch(new SendOrderConfirmation($order->id));
-
-Queue::assertPushed(SendOrderConfirmation::class);
-```
-
-```php
-use Illuminate\Support\Facades\Notification;
-
-Notification::fake();
-
-$user->notify(new InvoiceReady($invoice));
-
-Notification::assertSentTo($user, InvoiceReady::class);
-```
-
-### Auth Testing (Sanctum)
-
-```php
 use Laravel\Sanctum\Sanctum;
-
-Sanctum::actingAs($user);
-
-$response = $this->getJson('/api/projects');
-$response->assertOk();
-```
-
-### HTTP and External Services
-
-- Use `Http::fake()` to isolate external APIs
-- Assert outbound payloads with `Http::assertSent()`
-
-### Coverage Targets
-
-- Enforce 80%+ coverage for unit + feature tests
-- Use `pcov` or `XDEBUG_MODE=coverage` in CI
-
-### Test Commands
-
-- `php artisan test`
-- `vendor/bin/phpunit`
-- `vendor/bin/pest`
-
-### Test Configuration
-
-- Use `phpunit.xml` to set `DB_CONNECTION=sqlite` and `DB_DATABASE=:memory:` for fast tests
-- Keep separate env for tests to avoid touching dev/prod data
-
-### Authorization Tests
-
-```php
-use Illuminate\Support\Facades\Gate;
-
-$this->assertTrue(Gate::forUser($user)->allows('update', $project));
-$this->assertFalse(Gate::forUser($otherUser)->allows('update', $project));
-```
-
-### Inertia Feature Tests
-
-When using Inertia.js, assert on the component name and props with the Inertia testing helpers.
-
-```php
-use App\Models\User;
-use Inertia\Testing\AssertableInertia;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-final class DashboardInertiaTest extends TestCase
+final class StoreOrderTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_dashboard_inertia_props(): void
+    private const URL = '/api/v1/orders';
+
+    public function test_user_can_place_an_order(): void
     {
+        Queue::fake();
         $user = User::factory()->create();
+        $product = Product::factory()->create(['stock' => 5, 'price' => 1000]);
+        Sanctum::actingAs($user);
 
-        $response = $this->actingAs($user)->get('/dashboard');
+        $response = $this->postJson(self::URL, ['product_id' => $product->id, 'quantity' => 2]);
 
-        $response->assertOk();
-        $response->assertInertia(fn (AssertableInertia $page) => $page
-            ->component('Dashboard')
-            ->where('user.id', $user->id)
-            ->has('projects')
-        );
+        $this->assertApiSuccess($response, 201)
+            ->assertJsonPath('data.quantity', 2)
+            ->assertJsonPath('data.total', 2000);
+        $this->assertDatabaseHas('orders', ['user_id' => $user->id, 'product_id' => $product->id, 'quantity' => 2]);
+        $this->assertSame(3, $product->fresh()->stock);
+        Queue::assertPushedOn('mail', SendOrderConfirmation::class);
+    }
+
+    public function test_it_rejects_invalid_input(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $response = $this->postJson(self::URL, ['quantity' => 0]);
+
+        $this->assertApiError($response, 422, ['product_id', 'quantity']);
+    }
+
+    public function test_it_rejects_quantity_above_stock(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+        $product = Product::factory()->create(['stock' => 1]);
+
+        $response = $this->postJson(self::URL, ['product_id' => $product->id, 'quantity' => 2]);
+
+        $this->assertApiError($response, 422, ['quantity']);
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertSame(1, $product->fresh()->stock);   // transaction rolled back
+    }
+
+    public function test_guest_gets_401(): void
+    {
+        $this->assertApiError($this->postJson(self::URL, []), 401);
     }
 }
 ```
 
-Prefer `assertInertia` over raw JSON assertions to keep tests aligned with Inertia responses.
+Each endpoint needs these cases, as they apply:
+
+| Case | Status |
+|------|--------|
+| success | 200 / 201 |
+| invalid input | 422, with `errors` keyed by field |
+| unauthenticated | 401 |
+| authenticated but not allowed (someone else's resource) | 403 |
+| missing resource | 404 |
+| business rule violation (`BusinessException`) | its status |
+
+### Ownership and 404
+
+```php
+public function test_user_cannot_view_someone_elses_order(): void
+{
+    $order = Order::factory()->create();              // belongs to another user
+    Sanctum::actingAs(User::factory()->create());
+
+    $this->assertApiError($this->getJson("/api/v1/orders/{$order->id}"), 403);
+}
+
+public function test_missing_order_returns_404(): void
+{
+    Sanctum::actingAs(User::factory()->create());
+
+    $this->assertApiError($this->getJson('/api/v1/orders/999999'), 404);
+}
+```
+
+### Pagination
+
+```php
+public function test_index_is_paginated_and_scoped_to_the_user(): void
+{
+    $user = User::factory()->create();
+    Order::factory()->count(3)->for($user)->create();
+    Order::factory()->count(2)->create();             // other users
+    Sanctum::actingAs($user);
+
+    $response = $this->getJson('/api/v1/orders?per_page=2');
+
+    $this->assertApiPaginated($response)
+        ->assertJsonCount(2, 'data')
+        ->assertJsonPath('meta.total', 3);
+}
+```
+
+### Service test with real repositories
+
+```php
+final class OrderServiceTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_place_throws_business_exception_when_stock_is_short(): void
+    {
+        $product = Product::factory()->create(['stock' => 1]);
+
+        $this->expectException(BusinessException::class);
+
+        app(OrderService::class)->place(User::factory()->create(), ['product_id' => $product->id, 'quantity' => 3]);
+    }
+}
+```
+
+Resolve services from the container (`app(OrderService::class)`) so that the real repositories are injected. Use `$this->mock()` only for classes that call outside the app.
+
+### Jobs (RabbitMQ)
+
+- In endpoint tests, `Queue::fake()` asserts that the right job was dispatched on the right queue.
+- In job tests, call `handle()` directly with real repositories and faked externals, and assert idempotency:
+
+```php
+public function test_confirmation_is_sent_only_once(): void
+{
+    Mail::fake();
+    $order = Order::factory()->create(['confirmation_sent_at' => null]);
+    $job = new SendOrderConfirmation($order->id);
+
+    app()->call([$job, 'handle']);
+    app()->call([$job, 'handle']);                    // redelivery
+
+    Mail::assertSentCount(1);
+}
+```
+
+### External services
+
+```php
+Http::fake(['api.shipping.test/*' => Http::response(['tracking' => 'X1'], 200)]);
+// ... act ...
+Http::assertSent(fn ($request) => $request->url() === 'https://api.shipping.test/shipments');
+```
+
+Unfaked outbound HTTP is a bug. Add `Http::preventStrayRequests()` in `TestCase::setUp()`.
+
+### Factories
+
+- Every model has a factory. Use states for meaningful variants (`->paid()`, `->cancelled()`), not raw arrays spread across tests.
+- Use `for($user)` and `has()` for relations instead of hard-coded foreign IDs.
+
+### Commands
+
+```bash
+php artisan test                                  # full suite
+php artisan test --filter=StoreOrderTest          # one class
+php artisan test --parallel                       # needs brianium/paratest
+XDEBUG_MODE=coverage php artisan test --coverage --min=80
+```
+
+### Rules
+
+- Assert outcomes: the envelope, the database state, dispatched jobs and sent mail. Don't assert which methods were called internally.
+- One behaviour per test, with the name stating it: `test_guest_gets_401`, not `test_store_2`.
+- No `sleep()` and no real network. Freeze time with `$this->travelTo(now())` when dates matter.
+- A bug fix starts with a test that reproduces the bug and fails before the fix.

@@ -1,6 +1,6 @@
 ---
 description: Phase 4 — parallel multi-agent review routed by changed file types, consolidated into review.md (Gate 3)
-argument-hint: <slug> [base-branch=develop]
+argument-hint: <slug> [base-branch=main]
 ---
 
 Input: $ARGUMENTS

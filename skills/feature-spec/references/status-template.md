@@ -1,7 +1,7 @@
 # STATUS — <slug>
 phase: spec | plan | implement | verify | review | ship | done
 branch: feature/<slug>
-base: develop
+base: main
 updated: <YYYY-MM-DD HH:mm>
 
 ## Gates

@@ -39,9 +39,17 @@ Comprehensive security guidance for Laravel applications to protect against comm
 
 ## Authentication and Tokens
 
-- Use Laravel Sanctum or Passport for API auth
-- Prefer short-lived tokens with refresh flows for sensitive data
-- Revoke tokens on logout and compromised accounts
+Auth is **Sanctum** in two modes. Pick per client:
+
+| Client | Mode | How |
+|--------|------|-----|
+| First-party SPA on the same top-level domain | cookie session | `GET /sanctum/csrf-cookie`, then log in; `SANCTUM_STATEFUL_DOMAINS` lists the SPA host; `EnsureFrontendRequestsAreStateful` in the `api` middleware group; `SESSION_DOMAIN` and CORS `supports_credentials=true` |
+| Mobile app or third-party client | personal access token | `$user->createToken($deviceName, $abilities)->plainTextToken`, sent as `Authorization: Bearer` |
+
+- Give each token only the abilities its client needs (`['orders:read']`) and check them with `$request->user()->tokenCan()` or the `abilities`/`ability` middleware.
+- Set `expiration` in `config/sanctum.php` for tokens. Revoke the current token on logout (`$request->user()->currentAccessToken()->delete()`), and all tokens on a password change or a compromised account.
+- Rate-limit the login/token endpoint (`throttle:login`), and return the same message for an unknown email and a wrong password.
+- Never return the token hash or the `personal_access_tokens` row. Only return `plainTextToken`, once, at creation.
 
 Example route protection:
 

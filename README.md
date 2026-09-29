@@ -58,6 +58,26 @@ Origin legend: **own** = not in ECC, **custom** = modified from ECC, **ecc** = i
 
 `/review` routes by file type: `*.vue` goes to `vue-reviewer`, `*.tsx`/`*.jsx` to `react-reviewer`, and plain `*.ts`/`*.js` (for example NestJS) to `typescript-reviewer`. `e2e-runner` is referenced by `rules/typescript/testing.md`.
 
+### Laravel house style
+
+The Laravel skills and `laravel-reviewer` encode one set of decisions instead of listing alternatives:
+
+| Topic | Convention |
+|-------|------------|
+| App type | REST API for SPA/mobile clients |
+| Layers | FormRequest → Controller → Service → Repository (concrete class, no interface) → Model |
+| Service input | `$request->validated()` array |
+| Responses | `ApiResponse` envelope `{success, message, data, errors}` wrapping API Resources; lists add `meta` |
+| Errors | `BusinessException` + central handler; no `try/catch` in controllers |
+| Routes | `/api/v1`, controllers in `Api\V1` |
+| Auth | Sanctum: SPA cookie or personal access token |
+| Queue / cache | RabbitMQ (`vladimir-yuldashev/laravel-queue-rabbitmq`) / Redis |
+| Tests | PHPUnit on a MySQL test database, envelope assertions, real repositories |
+| Formatting | Pint |
+| Git | `main` only, `feature/*` branches, merged through an MR |
+
+`laravel-reviewer` treats any break of a layer or envelope rule as MAJOR. A project can override a single rule in its own `CLAUDE.md`.
+
 ### Continuous learning
 
 Full guide (Vietnamese): [docs/continuous-learning.md](docs/continuous-learning.md).

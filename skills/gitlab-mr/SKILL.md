@@ -6,9 +6,9 @@ description: Branch naming, Conventional Commits and GitLab Merge Request conven
 # GitLab MR
 
 ## Branch & commits
-- Branch: `feature/<slug>`, `fix/<slug>`, `chore/<slug>` from `develop` (or the repo's base in CLAUDE.md).
+- Branch: `feature/<slug>`, `fix/<slug>`, `chore/<slug>` from `main` (or the repo's base in CLAUDE.md).
 - One commit per plan task where possible: `feat(<scope>): <summary> [T3]`.
-- Never force-push shared branches; never commit to `main`/`master`/`develop`.
+- Never force-push shared branches; never commit directly to `main`/`master`; every change lands through an MR.
 
 ## MR description (English)
 ```
@@ -34,7 +34,7 @@ description: Branch naming, Conventional Commits and GitLab Merge Request conven
 ## Commands
 ```bash
 git push -u origin feature/<slug>
-glab mr create --source-branch feature/<slug> --target-branch develop \
+glab mr create --source-branch feature/<slug> --target-branch main \
   --title "<type>(<scope>): <summary>" \
   --description "$(cat docs/features/<slug>/mr-description.md)" --draft
 ```
