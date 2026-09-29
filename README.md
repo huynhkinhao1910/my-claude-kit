@@ -62,7 +62,7 @@ Origin legend: **own** = not in ECC, **custom** = modified from ECC, **ecc** = i
 | `/review` | laravel-reviewer, database-reviewer, security-reviewer, scalability-reviewer, silent-failure-hunter, spec-verifier, go-reviewer, typescript-reviewer, python-reviewer, code-reviewer | own |
 | `/ship` | doc-writer | own |
 
-### Agents (23)
+### Agents (25)
 
 | Agent | Origin |
 |-------|--------|
@@ -71,6 +71,7 @@ Origin legend: **own** = not in ECC, **custom** = modified from ECC, **ecc** = i
 | e2e-runner | ecc (description rewritten to the standard) |
 | vue-reviewer, react-reviewer, react-build-resolver | ecc (description rewritten to the standard) |
 | scalability-reviewer | own |
+| architect, refactor-cleaner | own (from `~/claude-audit/fixed`) |
 
 `/review` routes by file type: `*.vue` goes to `vue-reviewer`, `*.tsx`/`*.jsx` to `react-reviewer`, and plain `*.ts`/`*.js` (for example NestJS) to `typescript-reviewer`. `e2e-runner` is referenced by `rules/typescript/testing.md`.
 
@@ -120,6 +121,19 @@ Full guide (Vietnamese): [docs/continuous-learning.md](docs/continuous-learning.
 
 The observer is **off by default**. To turn it on, set `observer.enabled: true` in `~/.local/share/ecc-homunculus/config.json` (not in the skill's own `config.json`, which a reinstall overwrites). To stop recording and injection entirely, create `~/.local/share/ecc-homunculus/disabled`.
 
+### Daily commands
+
+| Command | Use |
+|---------|-----|
+| `/quick <task>` | A small fix or change: failing test → fix → verify → one language reviewer → **one gate** before commit. It escalates to `/feature` above ~3 files, or for a new contract, auth or payments |
+| `/debug <symptom>` | Root cause first, using the `debugging` skill (reproduce → narrow → one hypothesis at a time → prove). Stops with Symptom / Evidence / Root cause / Fix / Regression before any code changes |
+| `/code-review [base]` | Read-only review of uncommitted changes (or branch vs base), routed to the kit reviewers, findings inline |
+| `/build-fix` | Runs the failing build, type or lint step per stack, and delegates to `build-error-resolver`, `react-build-resolver` or `go-build-resolver` |
+| `/refactor-clean [path]` | Dead-code removal with `refactor-cleaner`, in approved safe batches, tests green after each |
+| `/save-session`, `/resume-session` | Hand off a half-done task to the next session (`~/.claude/session-data/`) |
+
+`architect` (opus) records cross-cutting decisions as ADRs in `docs/adr/`. `/code-review` replaces ECC's command of the same name, and the installer backs up the old one.
+
 ### Language commands
 
 | Command | Origin |
@@ -128,7 +142,7 @@ The observer is **off by default**. To turn it on, set `observer.enabled: true` 
 | `/go-review` | ecc |
 | `/vue-review`, `/react-review`, `/react-build`, `/react-test` | ecc |
 
-### Skills (38)
+### Skills (39)
 
 - Laravel: `laravel-patterns`, `laravel-security`, `laravel-tdd`, `laravel-verification`, `laravel-plugin-discovery`
 - Go: `golang-patterns`, `golang-testing`
@@ -143,6 +157,7 @@ The observer is **off by default**. To turn it on, set `observer.enabled: true` 
 - Pipeline support: `review-checklist`, `feature-spec`, `feature-docs`, `gitlab-mr` (own, from `~/claude-audit/fixed`), `database-migrations` (custom), `tdd-workflow`, `verification-loop` (ecc)
 - Learning: `continuous-learning-v2` (ecc)
 - Scalability: `scalability` (own), see below
+- Debugging: `debugging` (own), used by `/debug` and `/quick`
 
 Unmarked skills in the lists above are either identical to ECC (the front-end ones) or modified from ECC (the backend ones). `golang-patterns` uses the `~/claude-audit/fixed` version, because the version installed in `~/.claude` has invalid YAML frontmatter.
 
