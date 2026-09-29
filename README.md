@@ -475,6 +475,7 @@ my-claude-kit/
 ├── docs/              continuous-learning.md
 ├── tests/             unittest: guard, inject, merge-settings, install, lint
 ├── upstream/          bản gốc của các file dựa trên mã nguồn mở, để đối chiếu (không cài)
+├── LICENSE            MIT, © 2026 huynhkinhao1910
 ├── THIRD_PARTY_NOTICES.md  giấy phép và ghi nhận mã nguồn mở
 ├── AGENT_STANDARD.md  chuẩn viết agent/skill/command
 ├── lint.py            kiểm tra theo chuẩn
@@ -540,5 +541,7 @@ Khi dự án gốc có bản vá đáng lấy: so bản mới với `upstream/`,
 ---
 
 ## 16. Giấy phép và ghi nhận
+
+My Claude Kit được phát hành theo giấy phép [MIT](LICENSE), © 2026 huynhkinhao1910.
 
 Một số skill, agent và command trong kit được xây dựng dựa trên các dự án mã nguồn mở theo giấy phép MIT. Thông báo giấy phép đầy đủ nằm trong [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), và bản gốc được giữ trong `upstream/`.
