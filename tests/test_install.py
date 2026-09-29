@@ -1,4 +1,4 @@
-"""Tests for install.sh: rules namespace and retiring the legacy ecc namespace."""
+"""Tests for install.sh: rules namespace and retiring legacy/duplicate rule installs."""
 import os
 import subprocess
 import tempfile
@@ -17,6 +17,13 @@ class InstallTest(unittest.TestCase):
         (legacy / "common").mkdir(parents=True)
         (legacy / "common" / "old.md").write_text("old", encoding="utf-8")
         (legacy / "angular").mkdir()  # not owned by the kit, must survive
+        (legacy / "zh").mkdir()
+        (legacy / "README.md").write_text("ecc install notes", encoding="utf-8")
+        flat = self.claude / "rules"
+        (flat / "common").mkdir()
+        (flat / "zh").mkdir()
+        (flat / "README.md").write_text("flat install notes", encoding="utf-8")
+        (flat / "python").mkdir()  # not owned by the kit, must survive
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -43,6 +50,25 @@ class InstallTest(unittest.TestCase):
     def test_keeps_legacy_dirs_the_kit_does_not_own(self):
         self.install()
         self.assertTrue((self.claude / "rules" / "ecc" / "angular").is_dir())
+        self.assertTrue((self.claude / "rules" / "python").is_dir())
+
+    def test_retires_flat_root_copies_of_kit_rules(self):
+        self.install()
+        self.assertFalse((self.claude / "rules" / "common").exists())
+        self.assertTrue((self.claude / "rules" / "my-claude-kit" / "common").is_dir())
+
+    def test_retires_known_duplicates_in_every_legacy_namespace(self):
+        self.install()
+        for rel in ("zh", "README.md", "ecc/zh", "ecc/README.md"):
+            self.assertFalse((self.claude / "rules" / rel).exists(), rel)
+        backups = list((self.claude / ".backup").glob("my-claude-kit-*/rules/README.md"))
+        self.assertEqual(backups[0].read_text(encoding="utf-8"), "flat install notes")
+
+    def test_retire_duplicates_can_be_disabled(self):
+        env = {**os.environ, "CLAUDE_DIR": str(self.claude), "RETIRE_DUPLICATES": ""}
+        subprocess.run(["bash", str(KIT_ROOT / "install.sh"), "--no-hooks"], env=env,
+                       capture_output=True, text=True, timeout=120, check=True)
+        self.assertTrue((self.claude / "rules" / "zh").is_dir())
 
     def test_dry_run_changes_nothing(self):
         result = self.install("--dry-run")

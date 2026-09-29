@@ -25,4 +25,4 @@ if (!apiKey) {
 
 ## Agent Support
 
-- Use **security-reviewer** skill for comprehensive security audits
+- Use the **security-reviewer** agent for comprehensive security audits

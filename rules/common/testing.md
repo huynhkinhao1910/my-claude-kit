@@ -19,14 +19,16 @@ MANDATORY workflow:
 
 ## Troubleshooting Test Failures
 
-1. Use **tdd-guide** agent
+1. Reproduce the failure in isolation (single test, fresh database state)
 2. Check test isolation
 3. Verify mocks are correct
 4. Fix implementation, not tests (unless tests are wrong)
 
 ## Agent Support
 
-- **tdd-guide** - Use PROACTIVELY for new features, enforces write-tests-first
+- **test-writer** - writes the failing test first (RED) from acceptance criteria or a bug report
+- **implementer** - makes it pass (GREEN), then refactors
+- **spec-verifier** - checks every acceptance criterion is covered by a test that truly asserts the outcome
 
 ## Test Structure (AAA Pattern)
 

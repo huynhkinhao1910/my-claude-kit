@@ -2,23 +2,15 @@
 
 ## Model Selection Strategy
 
-**Haiku 4.5** (90% of Sonnet capability, 3x sh savings):
+Agent frontmatter uses the aliases `opus`, `sonnet` and `haiku`, which resolve to the current model in each tier (Opus 5.5, Sonnet 5, Haiku 4.5). Route by the kind of work, as `AGENT_STANDARD.md` defines:
 
-- Lightweight agents with frequent invocation
-- Pair programming and code generation
-- Worker agents in multi-agent systems
+| Alias | Use for | Kit agents |
+|-------|---------|------------|
+| `opus` | Ambiguity and judgment: requirements, planning, architecture, security, Laravel correctness review | requirement-analyst, planner, laravel-reviewer, security-reviewer |
+| `sonnet` | Pattern-following work: implementation, tests, language review, docs | implementer, test-writer, go/typescript/vue/react reviewers, doc-writer |
+| `haiku` | Mechanical, high-frequency work | continuous-learning observer |
 
-**Sonnet 4.6** (Best coding model):
-
-- Main development work
-- Orchestrating multi-agent workflows
-- Complex coding tasks
-
-**Opus 4.5** (Deepest reasoning):
-
-- Complex architectural decisions
-- Maximum reasoning requirements
-- Research and analysis tasks
+Pick the cheapest tier that does the job well, and move up a tier only when the output is wrong, not just slow.
 
 ## Context Window Management
 
@@ -37,27 +29,17 @@ Lower context sensitivity tasks:
 
 ## Extended Thinking + Plan Mode
 
-Extended thinking is enabled by default, reserving up to 31,999 tokens for internal reasoning.
+For complex tasks that need deep reasoning:
 
-Control extended thinking via:
-
-- **Toggle**: Option+T (macOS) / Alt+T (Windows/Linux)
-- **Config**: Set `alwaysThinkingEnabled` in `~/.claude/settings.json`
-- **Budget cap**: `export MAX_THINKING_TOKENS=10000`
-- **Verbose mode**: Ctrl+O to see thinking output
-
-For complex tasks requiring deep reasoning:
-
-1. Ensure extended thinking is enabled (on by default)
-2. Enable **Plan Mode** for structured approach
-3. Use multiple critique rounds for thorough analysis
-4. Use split role sub-agents for diverse perspectives
+1. Start in **Plan Mode** and agree on the approach before editing files
+2. Run several critique rounds on the plan
+3. Use split-role subagents for independent perspectives (for example laravel-reviewer + security-reviewer + database-reviewer)
 
 ## Build Troubleshooting
 
 If build fails:
 
-1. Use **build-error-resolver** agent
+1. Use the matching build resolver: **build-error-resolver** (PHP, TS, Vue, Python), **go-build-resolver** or **react-build-resolver**
 2. Analyze error messages
 3. Fix incrementally
 4. Verify after each fix

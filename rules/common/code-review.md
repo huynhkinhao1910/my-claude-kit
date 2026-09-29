@@ -63,12 +63,16 @@ Use these agents for code review:
 
 | Agent | Purpose |
 |-------|---------|
-| **code-reviewer** | General code quality, patterns, best practices |
-| **security-reviewer** | Security vulnerabilities, OWASP Top 10 |
-| **typescript-reviewer** | TypeScript/JavaScript specific issues |
+| **laravel-reviewer** | PHP/Laravel correctness, layering, Eloquent, queues |
+| **vue-reviewer** | Vue 3/Nuxt reactivity, components, Pinia/Router |
+| **react-reviewer** | React/Next hooks, render performance, server/client boundaries |
+| **typescript-reviewer** | TypeScript/JavaScript and NestJS typing and async |
+| **go-reviewer** | Go idioms, errors, context, concurrency |
 | **python-reviewer** | Python specific issues |
-| **go-reviewer** | Go specific issues |
-| **rust-reviewer** | Rust specific issues |
+| **database-reviewer** | MySQL indexes, N+1, migration safety, locking |
+| **security-reviewer** | Security vulnerabilities, OWASP Top 10 |
+| **silent-failure-hunter** | Swallowed exceptions, hidden fallbacks, missing timeouts |
+| **code-reviewer** | Fallback for shell, SQL scripts, YAML/CI, Dockerfile, config |
 
 ## Review Workflow
 

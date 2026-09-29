@@ -1,51 +1,30 @@
 # Agent Orchestration
 
-## Available Agents
+Agents live in `~/.claude/agents/`. Every agent follows `AGENT_STANDARD.md`: reviewers, verifiers and explorers are read-only, and only `implementer` and the build resolvers write code.
 
-Located in `~/.claude/agents/`:
+## Kit Roster
 
-| Agent | Purpose | When to Use |
-|-------|---------|-------------|
-| planner | Implementation planning | Complex features, refactoring |
-| architect | System design | Architectural decisions |
-| tdd-guide | Test-driven development | New features, bug fixes |
-| code-reviewer | Code review | After writing code |
-| security-reviewer | Security analysis | Before commits |
-| build-error-resolver | Fix build errors | When build fails |
-| e2e-runner | E2E testing | Critical user flows |
-| refactor-cleaner | Dead code cleanup | Code maintenance |
-| doc-updater | Documentation | Updating docs |
-| rust-reviewer | Rust code review | Rust projects |
-| harmonyos-app-resolver | HarmonyOS app development | HarmonyOS/ArkTS projects |
+| Phase | Agent | Writes code? |
+|-------|-------|--------------|
+| Spec | requirement-analyst | docs only |
+| Explore | code-explorer | no |
+| Plan | planner | docs only |
+| Implement | test-writer → implementer | yes |
+| Fix build | build-error-resolver (PHP, TS, Vue, Python), go-build-resolver, react-build-resolver | yes |
+| Review | laravel-reviewer, typescript-reviewer, vue-reviewer, react-reviewer, go-reviewer, python-reviewer, code-reviewer (fallback), security-reviewer, database-reviewer, silent-failure-hunter | no |
+| Verify | spec-verifier | no |
+| E2E | e2e-runner | tests only |
+| Ship | doc-writer, commit-message-writer | docs only |
 
-## Immediate Agent Usage
+## When to Reach for Which
 
-No user prompt needed:
-1. Complex feature requests - Use **planner** agent
-2. Code just written/modified - Use **code-reviewer** agent
-3. Bug fix or new feature - Use **tdd-guide** agent
-4. Architectural decision - Use **architect** agent
+1. New feature or non-trivial change: run `/feature` (spec → plan → implement → verify → review → ship).
+2. Bug fix: `test-writer` reproduces the bug with a failing test, then `implementer` makes it pass.
+3. Code just changed: run `/review`. It routes by file type: `*.php` to laravel-reviewer, `*.vue` to vue-reviewer, `*.tsx`/`*.jsx` to react-reviewer, `*.ts`/`*.js` to typescript-reviewer, and `*.go` to go-reviewer.
+4. Build, type or lint failure: use the matching build resolver.
+5. Changes touching auth, user input, uploads, payments, webhooks or secrets: add `security-reviewer`.
+6. Migrations, raw SQL, or queries over large tables: add `database-reviewer`.
 
-## Parallel Task Execution
+## Parallel Execution
 
-ALWAYS use parallel Task execution for independent operations:
-
-```markdown
-# GOOD: Parallel execution
-Launch 3 agents in parallel:
-1. Agent 1: Security analysis of auth module
-2. Agent 2: Performance review of cache system
-3. Agent 3: Type checking of utilities
-
-# BAD: Sequential when unnecessary
-First agent 1, then agent 2, then agent 3
-```
-
-## Multi-Perspective Analysis
-
-For complex problems, use split role sub-agents:
-- Factual reviewer
-- Senior engineer
-- Security expert
-- Consistency reviewer
-- Redundancy checker
+Launch independent agents in one message so they run concurrently. `/review` already does this for its reviewers.

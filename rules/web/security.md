@@ -1,3 +1,23 @@
+---
+paths:
+  - "**/*.vue"
+  - "**/*.tsx"
+  - "**/*.jsx"
+  - "**/*.css"
+  - "**/*.scss"
+  - "**/*.html"
+  - "**/*.blade.php"
+  - "resources/js/**"
+  - "resources/css/**"
+  - "**/components/**"
+  - "**/pages/**"
+  - "**/layouts/**"
+  - "**/vite.config.*"
+  - "**/tailwind.config.*"
+  - "**/nuxt.config.*"
+  - "**/next.config.*"
+---
+
 > This file extends [common/security.md](../common/security.md) with web-specific security content.
 
 # Web Security Rules

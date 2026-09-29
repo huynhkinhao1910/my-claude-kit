@@ -1,3 +1,23 @@
+---
+paths:
+  - "**/*.vue"
+  - "**/*.tsx"
+  - "**/*.jsx"
+  - "**/*.css"
+  - "**/*.scss"
+  - "**/*.html"
+  - "**/*.blade.php"
+  - "resources/js/**"
+  - "resources/css/**"
+  - "**/components/**"
+  - "**/pages/**"
+  - "**/layouts/**"
+  - "**/vite.config.*"
+  - "**/tailwind.config.*"
+  - "**/nuxt.config.*"
+  - "**/next.config.*"
+---
+
 > This file extends [common/coding-style.md](../common/coding-style.md) with web-specific frontend content.
 
 # Web Coding Style

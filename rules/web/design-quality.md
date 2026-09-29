@@ -1,3 +1,23 @@
+---
+paths:
+  - "**/*.vue"
+  - "**/*.tsx"
+  - "**/*.jsx"
+  - "**/*.css"
+  - "**/*.scss"
+  - "**/*.html"
+  - "**/*.blade.php"
+  - "resources/js/**"
+  - "resources/css/**"
+  - "**/components/**"
+  - "**/pages/**"
+  - "**/layouts/**"
+  - "**/vite.config.*"
+  - "**/tailwind.config.*"
+  - "**/nuxt.config.*"
+  - "**/next.config.*"
+---
+
 > This file extends [common/patterns.md](../common/patterns.md) with web-specific design-quality guidance.
 
 # Web Design Quality Standards

@@ -18,7 +18,8 @@ Requirements: `bash`, `git`, `python3`. The background observer also needs the `
 |-----|---------|---------|
 | `CLAUDE_DIR` | `~/.claude` | Target config dir |
 | `RULES_NS` | `my-claude-kit` | Rules subfolder (`~/.claude/rules/<ns>/`) |
-| `LEGACY_RULES_NS` | `ecc` | Old namespace. Any rule dir the kit owns that is found here is moved to the backup so it does not load twice. Dirs the kit does not own (e.g. `angular`) are left alone |
+| `LEGACY_RULES_NS` | `ecc .` | Old namespaces, space-separated, where `.` is the flat `rules/` root. Any rule dir the kit owns that is found there is moved to the backup so it does not load twice. Dirs the kit does not own (e.g. `angular`, `python`) are left alone |
+| `RETIRE_DUPLICATES` | `zh README.md` | Extra entries retired from the old namespaces: `zh` is a Chinese copy of `common`, and the `README.md` files are ECC install notes that Claude loads as rules. Set it to an empty string to keep them |
 
 ## Naming
 
@@ -98,6 +99,8 @@ Unmarked skills in the lists above are either identical to ECC (the front-end on
 
 `rules/common`, `rules/php`, `rules/golang`, `rules/typescript`, `rules/web` (custom), `rules/vue`, `rules/nuxt`, `rules/react`. The language rules link to `../common/`, so they all install into the same namespace.
 
+Only `rules/common` loads in every session, about 17k chars. Every other rule dir has `paths:` frontmatter and loads only when matching files are in play, so `rules/web` loads only for Vue, React, CSS, Blade and `resources/js` work. The `common` rules reference only agents that ship in the kit, and model routing follows `AGENT_STANDARD.md`.
+
 ## Standard and lint
 
 Every agent, skill and command follows [AGENT_STANDARD.md](AGENT_STANDARD.md). `lint.py` enforces the standard and fails on missing skills or agents, broken frontmatter, and read-only agents that hold write tools.
@@ -113,7 +116,7 @@ python3 lint.py ~/.claude  # lint an installed config
 python3 -m unittest discover -s tests
 ```
 
-This runs 28 tests: `inject-instincts.py`, `merge-settings.py`, `install.sh` (rules namespace and retiring the legacy namespace), and a check that the kit passes `lint.py` with 0 errors.
+This runs 31 tests: `inject-instincts.py`, `merge-settings.py`, `install.sh` (rules namespace and retiring the legacy namespace), and a check that the kit passes `lint.py` with 0 errors.
 
 ## upstream/
 

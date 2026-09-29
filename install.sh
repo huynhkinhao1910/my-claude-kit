@@ -4,13 +4,17 @@
 #   --dry-run   print what would happen, change nothing
 #   --no-hooks  copy files only, do not register hooks in settings.json
 # Env:   CLAUDE_DIR (default ~/.claude), RULES_NS (default my-claude-kit),
-#        LEGACY_RULES_NS (default ecc: old namespace whose kit rule dirs get retired)
+#        LEGACY_RULES_NS  old rule namespaces, space-separated; "." is the flat rules/ root
+#                         (default "ecc ."). Kit-owned dirs found there are retired.
+#        RETIRE_DUPLICATES extra entries retired from those namespaces (default "zh README.md":
+#                         the Chinese copy of common and ECC install notes, both loaded as rules)
 set -euo pipefail
 
 KIT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLAUDE_DIR="${CLAUDE_DIR:-$HOME/.claude}"
 RULES_NS="${RULES_NS:-my-claude-kit}"
-LEGACY_RULES_NS="${LEGACY_RULES_NS:-ecc}"
+LEGACY_RULES_NS="${LEGACY_RULES_NS:-ecc .}"
+RETIRE_DUPLICATES="${RETIRE_DUPLICATES-zh README.md}"
 DRY_RUN=0
 REGISTER_HOOKS=1
 for arg in "$@"; do
@@ -53,12 +57,22 @@ for f in "$KIT_DIR"/agents/*.md;   do install_item "$f" "$CLAUDE_DIR/agents/$(ba
 for f in "$KIT_DIR"/commands/*.md; do install_item "$f" "$CLAUDE_DIR/commands/$(basename "$f")"; done
 for d in "$KIT_DIR"/skills/*/;     do d="${d%/}"; install_item "$d" "$CLAUDE_DIR/skills/$(basename "$d")"; done
 # Language rules link to ../common, so every kit rule dir shares one namespace.
+kit_rules=""
 for d in "$KIT_DIR"/rules/*/; do
   d="${d%/}"; name="$(basename "$d")"
   install_item "$d" "$CLAUDE_DIR/rules/$RULES_NS/$name"
-  # Same rules left in the old namespace would load twice; retire only the dirs the kit owns.
-  legacy="$CLAUDE_DIR/rules/$LEGACY_RULES_NS/$name"
-  if [ "$LEGACY_RULES_NS" != "$RULES_NS" ] && [ -e "$legacy" ]; then retire_item "$legacy"; fi
+  kit_rules="$kit_rules $name"
+done
+
+# Old installs of the same rules would load twice. Retire only kit-owned dirs plus the
+# known duplicates; anything else in the old namespaces (e.g. angular, python) stays.
+for ns in $LEGACY_RULES_NS; do
+  [ "$ns" = "$RULES_NS" ] && continue
+  base="$CLAUDE_DIR/rules"; [ "$ns" != "." ] && base="$base/$ns"
+  for name in $kit_rules $RETIRE_DUPLICATES; do
+    [ "$ns" = "." ] && [ "$name" = "$RULES_NS" ] && continue
+    if [ -e "$base/$name" ]; then retire_item "$base/$name"; fi
+  done
 done
 install_item "$KIT_DIR/hooks" "$CLAUDE_DIR/hooks/my-claude-kit"
 
