@@ -64,6 +64,9 @@ Cài xong thì **khởi động lại Claude Code**.
 | `./install.sh --no-hooks`     | Chỉ copy file, không đụng `settings.json`. Hợp với máy công ty có chính sách chặt |
 | `./install.sh --no-claude-md` | Giữ `~/.claude/CLAUDE.md` riêng của máy đó                                        |
 | `./install.sh --dry-run`      | Xem trước, không ghi gì                                                           |
+| `./install.sh --target codex`           | Cài cho OpenAI Codex CLI (`~/.codex`, skills vào `~/.agents/skills`)         |
+| `./install.sh --target copilot`         | Cài cho GitHub Copilot CLI và VS Code (`~/.copilot`, skills vào `~/.agents/skills`) |
+| `./install.sh --target claude,codex`    | Cài nhiều target một lần                                                     |
 
 **Installer làm gì:**
 
@@ -86,6 +89,21 @@ cd ~/my-claude-kit && git pull && ./install.sh
 ```
 
 Sửa kit **trong repo này**, đừng sửa thẳng `~/.claude`, vì lần cài sau sẽ ghi đè. Sửa ở máy nào thì commit và push từ máy đó, máy kia `git pull` rồi cài lại.
+
+### Codex và Copilot
+
+File cho từng AI nằm sẵn trong repo, installer chỉ copy:
+
+| Thư mục repo  | Cài vào                 | Nội dung                                                     |
+| ------------- | ----------------------- | ------------------------------------------------------------ |
+| `skills/`     | `~/.agents/skills/`     | Skill dùng chung, cả Codex và Copilot đều đọc                 |
+| `dotagents/`  | `~/.agents/`            | Command của kit ở dạng skill (`quick`, `feature`, `debug`…)  |
+| `codex/`      | `~/.codex/`             | `AGENTS.md`, agent dạng TOML, rules                          |
+| `copilot/`    | `~/.copilot/`           | `copilot-instructions.md`, `*.agent.md`, `*.instructions.md` |
+
+- **Sửa agent hay command thì sửa ở cả 3 nơi** (`agents/`, `codex/agents/`, `copilot/agents/`). `tests/test_targets.py` báo lỗi nếu thiếu file ở target nào.
+- Chưa có cho Codex/Copilot: hooks (`guard.sh`, continuous learning) và các command instinct/session.
+- Đổi thư mục cài bằng `CODEX_HOME`, `COPILOT_HOME`, `AGENTS_HOME`.
 
 ### Gỡ bỏ
 
@@ -472,9 +490,12 @@ my-claude-kit/
 ├── hooks/             guard.sh, post-edit-format.sh, inject-instincts.py
 ├── settings/          permissions.json (deny rules)
 ├── claude/            CLAUDE.md global
+├── codex/             bản cho Codex: AGENTS.md, agents/*.toml, rules (→ ~/.codex)
+├── copilot/           bản cho Copilot: *.agent.md, *.instructions.md (→ ~/.copilot)
+├── dotagents/         command dạng skill cho Codex + Copilot (→ ~/.agents)
 ├── scripts/           merge-settings.py (hooks + deny ↔ settings.json)
 ├── docs/              continuous-learning.md
-├── tests/             unittest: guard, inject, merge-settings, install, lint
+├── tests/             unittest: guard, inject, merge-settings, install, lint, targets
 ├── upstream/          bản gốc của các file dựa trên mã nguồn mở, để đối chiếu (không cài)
 ├── LICENSE            MIT, © 2026 huynhkinhao1910
 ├── AGENT_STANDARD.md  chuẩn viết agent/skill/command
