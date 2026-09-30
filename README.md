@@ -2,7 +2,7 @@
 
 Bộ agent, skill, command, rules và hook cá nhân cho **Claude Code**, được thiết kế và tuỳ biến theo đúng stack và cách làm việc của mình:
 
-- **Backend:** PHP/Laravel, Go, TypeScript/NestJS, trên MySQL, Redis và RabbitMQ
+- **Backend:** PHP/Laravel, Go, Python/FastAPI, TypeScript/NestJS, trên MySQL, Redis và RabbitMQ
 - **Frontend:** Vue 3 / Nuxt, React / Next.js
 - **Quy trình:** pipeline `/feature` (spec → plan → TDD → verify → review → ship qua GitLab MR), đường nhanh `/quick` và `/debug` cho việc nhỏ
 - **Chất lượng:** Laravel house style, một API contract thống nhất, scalability, lớp an toàn (chặn secret và lệnh phá hoại), tự học theo project (instincts)
@@ -15,9 +15,9 @@ Bộ agent, skill, command, rules và hook cá nhân cho **Claude Code**, đư�
 2. [Dùng hằng ngày: gặp việc gì thì gọi gì](#2-dùng-hằng-ngày-gặp-việc-gì-thì-gọi-gì)
 3. [Pipeline `/feature`](#3-pipeline-feature)
 4. [Đường nhanh: `/quick`, `/debug`, `/code-review`](#4-đường-nhanh-quick-debug-code-review)
-5. [Danh mục command](#5-danh-mục-command-28)
+5. [Danh mục command](#5-danh-mục-command-30)
 6. [Danh mục agent](#6-danh-mục-agent-25)
-7. [Danh mục skill](#7-danh-mục-skill-39)
+7. [Danh mục skill](#7-danh-mục-skill-42)
 8. [Rules](#8-rules)
 9. [House style và API contract](#9-house-style-và-api-contract)
 10. [Scalability](#10-scalability)
@@ -40,7 +40,7 @@ Bộ agent, skill, command, rules và hook cá nhân cho **Claude Code**, đư�
 | `jq`                                                  | ✅           | `guard.sh` và `post-edit-format.sh`. **Thiếu `jq` thì guard không chặn được gì**, installer sẽ cảnh báo |
 | `glab` (đã chạy `glab auth login`)                    | cho `/ship`  | mở GitLab MR. Thiếu thì `/ship` chỉ in MR description ra                                                |
 | `claude` CLI                                          | cho observer | observer tự học chạy bằng Haiku (mặc định tắt)                                                          |
-| `composer`/`pint`, `node`/`tsc`, `go`/`golangci-lint` | theo project | để `/verify`, `/quick`, `/build-fix` chạy được bước kiểm tra                                            |
+| `composer`/`pint`, `node`/`tsc`, `go`/`golangci-lint`, `uv`/`ruff`/`mypy` | theo project | để `/verify`, `/quick`, `/build-fix` chạy được bước kiểm tra                                            |
 
 ```bash
 brew install jq glab golangci-lint    # macOS
@@ -83,7 +83,7 @@ Cài xong thì **khởi động lại Claude Code**.
 **Installer làm gì:**
 
 - **Backup trước khi ghi:** mọi file bị ghi đè được chuyển vào `~/.claude/.backup/my-claude-kit-<thời gian>/`. `settings.json` được backup thành `settings.json.bak-<thời gian>` mỗi khi có thay đổi.
-- **Rules:** cài vào `~/.claude/rules/my-claude-kit/`. Bản cũ của cùng rules nằm ở `rules/ecc/` hoặc `rules/` phẳng, cùng với `zh/` và các file `README.md` hướng dẫn của ECC, được chuyển vào backup để không bị nạp 2 lần. Rules không thuộc kit (`angular`, `python`…) được giữ nguyên.
+- **Rules:** cài vào `~/.claude/rules/my-claude-kit/`. Bản cũ của cùng rules nằm ở `rules/ecc/` hoặc `rules/` phẳng, cùng với `zh/` và các file `README.md` hướng dẫn của ECC, được chuyển vào backup để không bị nạp 2 lần. Rules không thuộc kit (`angular`, `swift`…) được giữ nguyên.
 - **Hooks:** `guard.sh`, `post-edit-format.sh`, `observe.sh`, `inject-instincts.py` được đăng ký vào `settings.json`. Entry cũ trỏ tới `~/.claude/hooks/guard.sh` được thay thế. Hook riêng của bạn được giữ nguyên.
 - **Permissions:** rule deny của kit được gộp vào `permissions.deny`. Rule `allow`/`deny` riêng của bạn được giữ nguyên.
 
@@ -222,7 +222,7 @@ Không truyền base thì review thay đổi chưa commit. Có base thì review 
 
 ---
 
-## 5. Danh mục command (28)
+## 5. Danh mục command (30)
 
 ### Pipeline
 
@@ -255,6 +255,8 @@ Không truyền base thì review thay đổi chưa commit. Có base thì review 
 | `/go-build`     | Sửa lỗi `go build`/`go vet`/lint (go-build-resolver) |
 | `/go-test`      | TDD cho Go, table-driven test, coverage              |
 | `/go-review`    | Review Go (go-reviewer)                              |
+| `/python-test`  | TDD cho Python/FastAPI, pytest, coverage             |
+| `/python-review`| Review Python/FastAPI (python-reviewer)              |
 | `/vue-review`   | Review Vue (vue-reviewer + typescript-reviewer)      |
 | `/react-review` | Review React (react-reviewer + typescript-reviewer)  |
 | `/react-build`  | Sửa build React/Next (react-build-resolver)          |
@@ -304,7 +306,7 @@ Cột **Ghi code**: ✍️ = được sửa code · 📄 = chỉ ghi tài liệu
 | vue-reviewer          | sonnet | Vue 3/Nuxt: Composition API, reactivity, Pinia/Router                                                                                        |
 | react-reviewer        | sonnet | React/Next: hook, render, server/client boundary, a11y                                                                                       |
 | go-reviewer           | sonnet | Go: idiom, error, context, concurrency, rò rỉ tài nguyên                                                                                     |
-| python-reviewer       | sonnet | Python: typing, error handling, async                                                                                                        |
+| python-reviewer       | sonnet | Python/FastAPI: typing, error handling, async, layering, SQLAlchemy                                                                          |
 | silent-failure-hunter | sonnet | Exception bị nuốt, catch rỗng, fallback che lỗi, thiếu timeout/rollback                                                                      |
 | code-reviewer         | sonnet | Dự phòng cho shell, SQL script, YAML/CI, Dockerfile, config                                                                                  |
 
@@ -320,7 +322,7 @@ Cột **Ghi code**: ✍️ = được sửa code · 📄 = chỉ ghi tài liệu
 
 ---
 
-## 7. Danh mục skill (39)
+## 7. Danh mục skill (42)
 
 Skill là kiến thức được nạp khi cần. Chỉ phần **description** (1-2 câu) luôn nằm trong context. Nội dung đầy đủ chỉ được đọc khi skill liên quan tới việc đang làm.
 
@@ -344,6 +346,9 @@ Skill là kiến thức được nạp khi cần. Chỉ phần **description** (
 | `database-migrations` | Migration an toàn, zero-downtime                                                                                                                                                      |
 | `golang-patterns`     | Go idiomatic: error, interface, concurrency, package                                                                                                                                  |
 | `golang-testing`      | Table-driven test, fuzz, benchmark, coverage                                                                                                                                          |
+| `python-patterns`     | Python 3.12+: uv, ruff, mypy --strict, typing, Protocol, error, async, config                                                                                                        |
+| `python-testing`      | pytest, fixture, MySQL test DB rollback, httpx AsyncClient, respx, coverage                                                                                                          |
+| `fastapi-patterns`    | FastAPI: schema → router → service → repository, SQLAlchemy async, exception handler, RabbitMQ, Redis                                                                                |
 | `nestjs-patterns`     | Module, provider, DTO, guard, interceptor, config                                                                                                                                     |
 
 ### Chất lượng, quy trình, vận hành
@@ -392,6 +397,7 @@ Rules là các chỉ dẫn "luôn tuân theo". Rules nằm trong `~/.claude/rule
 | `common/`                 | **mọi session** (~17k ký tự)                                | coding style, testing, security, git workflow, roster agent, chọn model, code review |
 | `php/`                    | khi làm file PHP                                            | style, pattern, security, testing PHP                                                |
 | `golang/`                 | khi làm file Go                                             | idiom Go                                                                             |
+| `python/`                 | khi làm file Python                                         | style, pattern, security, testing Python/FastAPI                                     |
 | `typescript/`             | khi làm file TS/JS                                          | type, response type theo `api-design`                                                |
 | `web/`                    | khi làm file `.vue`, `.tsx`, `.css`, Blade, `resources/js`… | design quality, performance, security web                                            |
 | `vue/`, `nuxt/`, `react/` | khi làm file tương ứng                                      | luật riêng từng framework                                                            |
@@ -496,9 +502,9 @@ Hướng dẫn chi tiết: [docs/continuous-learning.md](docs/continuous-learnin
 ```
 my-claude-kit/
 ├── agents/            25 agent (.md, frontmatter: name, description, tools, model, skills)
-├── commands/          28 slash command
-├── skills/            39 skill (SKILL.md + references/)
-├── rules/             common + php, golang, typescript, web, vue, nuxt, react
+├── commands/          30 slash command
+├── skills/            42 skill (SKILL.md + references/)
+├── rules/             common + php, golang, python, typescript, web, vue, nuxt, react
 ├── hooks/             guard.sh, post-edit-format.sh, inject-instincts.py
 ├── settings/          permissions.json (deny rules)
 ├── claude/            CLAUDE.md global

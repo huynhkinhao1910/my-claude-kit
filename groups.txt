@@ -7,4 +7,4 @@ frontend: skills/frontend-patterns skills/frontend-design-direction skills/desig
 react: skills/react-patterns skills/react-performance skills/react-testing skills/nextjs-turbopack skills/frontend-a11y skills/motion-foundations skills/motion-patterns skills/motion-advanced agents/react-reviewer agents/react-build-resolver commands/react-build commands/react-review commands/react-test rules/react
 vue: skills/vue-patterns skills/nuxt4-patterns skills/ui-to-vue agents/vue-reviewer commands/vue-review rules/vue rules/nuxt
 nestjs: skills/nestjs-patterns agents/typescript-reviewer rules/typescript
-python: agents/python-reviewer
+python: skills/python-patterns skills/python-testing skills/fastapi-patterns agents/python-reviewer commands/python-review commands/python-test rules/python

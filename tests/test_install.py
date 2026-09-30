@@ -23,7 +23,7 @@ class InstallTest(unittest.TestCase):
         (flat / "common").mkdir()
         (flat / "zh").mkdir()
         (flat / "README.md").write_text("flat install notes", encoding="utf-8")
-        (flat / "python").mkdir()  # not owned by the kit, must survive
+        (flat / "swift").mkdir()  # not owned by the kit, must survive
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -50,7 +50,7 @@ class InstallTest(unittest.TestCase):
     def test_keeps_legacy_dirs_the_kit_does_not_own(self):
         self.install()
         self.assertTrue((self.claude / "rules" / "ecc" / "angular").is_dir())
-        self.assertTrue((self.claude / "rules" / "python").is_dir())
+        self.assertTrue((self.claude / "rules" / "swift").is_dir())
 
     def test_retires_flat_root_copies_of_kit_rules(self):
         self.install()

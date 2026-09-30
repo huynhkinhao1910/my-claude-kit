@@ -42,6 +42,7 @@ Before editing a file, read every rule file of the matching group under `~/.code
 - `golang/`: `**/*.go`, `**/go.mod`, `**/go.sum`
 - `nuxt/`: `**/nuxt.config.*`, `**/app.config.*`, `**/app.vue`, `**/pages/**`, `**/layouts/**`, `**/middleware/**`, `**/server/**/*.ts`, `**/*.vue`
 - `php/`: `**/*.php`, `**/composer.json`, `**/phpstan.neon`, `**/phpstan.neon.dist`, `**/psalm.xml`, `**/composer.lock`, `**/phpunit.xml`, `**/phpunit.xml.dist`
+- `python/`: `**/*.py`, `**/*.pyi`, `**/pyproject.toml`
 - `react/`: `**/*.tsx`, `**/*.jsx`, `**/components/**/*.ts`, `**/components/**/*.js`, `**/hooks/**/*.ts`, `**/hooks/**/*.js`, `**/use-*.ts`, `**/use-*.tsx`, `**/app/**/*.tsx`, `**/pages/**/*.tsx`, `**/app/**/*.ts`, `**/pages/**/*.ts`, `**/*.test.tsx`, `**/*.test.jsx`, `**/*.spec.tsx`, `**/*.spec.jsx`, `**/__tests__/**/*.ts`, `**/__tests__/**/*.tsx`
 - `typescript/`: `**/*.ts`, `**/*.tsx`, `**/*.js`, `**/*.jsx`
 - `vue/`: `**/*.vue`, `**/*.ts`, `**/*.tsx`

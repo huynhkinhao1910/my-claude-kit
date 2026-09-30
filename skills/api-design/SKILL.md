@@ -1,7 +1,7 @@
 ---
 name: api-design
 description: >-
-  The API contract for every REST API in the kit (Laravel, NestJS, Go). In an existing project, detect the
+  The API contract for every REST API in the kit (Laravel, NestJS, Go, FastAPI). In an existing project, detect the
   response format it already uses and follow it exactly. In a new project, use the default contract:
   data + paging (lists only) + meta, with errors as data null plus meta.message, meta.code and meta.errors. Also covers
   resource naming, HTTP methods, status codes, error codes, offset and keyset pagination, filtering, sorting, rate-limit
@@ -32,6 +32,7 @@ Before writing any response code, find out what the project already returns:
    - Laravel: `grep -rnE "ApiResponse|ResponseTrait|sendResponse|respondWith|->json\(" app/Http app/Support app/Traits`
    - NestJS: `grep -rnE "Interceptor|ExceptionFilter|class .*Response" src`
    - Go: `grep -rnE "func (write|respond|render)JSON|func .*Error\(w" .`
+   - FastAPI: `grep -rnE "exception_handler|JSONResponse|def (ok|paged|success)\(" src app`
 2. **Read 2–3 existing endpoints and their tests** (or the OpenAPI/Postman collection). Capture: the success shape, the list/pagination shape, the error shape, the validation-error shape, key casing (`snake_case` vs `camelCase`) and the date format.
 3. **Write it down.** If the project `CLAUDE.md` has no "API contract" section, propose one with the captured shapes, so the next session does not have to rediscover it.
 4. **Follow it exactly**, even where it differs from the default below. Reuse the project's helper, and never add a second helper next to it.
