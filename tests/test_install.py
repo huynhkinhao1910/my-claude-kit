@@ -169,6 +169,11 @@ class MultiTargetInstallTest(unittest.TestCase):
     def test_empty_target_is_rejected(self):
         self.assertEqual(self.install("--target=").returncode, 2)
 
+    def test_bare_target_is_rejected_with_message(self):
+        r = self.install("--target")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("--target needs a value", r.stderr)
+
     def test_dry_run_writes_nothing(self):
         r = self.install("--target", "codex,copilot", "--dry-run")
         self.assertEqual(r.returncode, 0, r.stderr)

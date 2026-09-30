@@ -31,7 +31,7 @@ while [ $# -gt 0 ]; do
     --no-hooks) REGISTER_HOOKS=0 ;;
     --no-claude-md) INSTALL_CLAUDE_MD=0 ;;
     --target=*) TARGETS="${1#--target=}" ;;
-    --target) shift; TARGETS="${1:-}" ;;
+    --target) TARGETS="${2:-}"; [ $# -gt 1 ] && shift ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
   shift

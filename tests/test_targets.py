@@ -84,6 +84,11 @@ class TargetFormatTest(unittest.TestCase):
         for path in files:
             self.assertTrue(frontmatter(path).get("applyTo"), path.name)
 
+    def test_every_rule_has_a_copilot_instruction(self):
+        for rule in (KIT / "rules").rglob("*.md"):
+            name = f"{rule.parent.name}-{rule.stem}.instructions.md"
+            self.assertTrue((KIT / "copilot/instructions" / name).is_file(), f"copilot missing {name}")
+
     def test_codex_agents_md_fits_the_32k_limit(self):
         self.assertLessEqual((KIT / "codex/AGENTS.md").stat().st_size, 32768)
 
