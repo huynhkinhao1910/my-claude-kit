@@ -47,6 +47,17 @@ brew install jq glab golangci-lint    # macOS
 glab auth login
 ```
 
+### Cài nhanh bằng npx (không cần clone)
+
+```bash
+npx github:huynhkinhao1910/my-claude-kit     # menu: chọn AI (Claude/Codex/Copilot), nhóm stack, xem trước hay cài luôn
+npx github:huynhkinhao1910/my-claude-kit --target codex --only laravel,go   # bỏ qua menu, truyền thẳng cho install.sh
+```
+
+Cần Node ≥ 18 và bash (macOS, Linux, WSL). Lệnh này lấy code từ branch `main` trên GitHub.
+
+**Nhóm stack** (`--only`, định nghĩa trong `groups.txt`): `laravel`, `go`, `frontend`, `react`, `vue`, `nestjs`, `python`. Những gì không thuộc nhóm nào là **core**, luôn được cài (debugging, api-design, planner, `/quick`, `/feature`…). Không có `--only` thì cài tất cả. Chọn `react` hoặc `vue` trong menu sẽ tự thêm `frontend`. Cài lại với ít nhóm hơn không gỡ các nhóm đã cài trước đó.
+
 ### Máy mới (nhà hoặc công ty)
 
 ```bash
@@ -67,6 +78,7 @@ Cài xong thì **khởi động lại Claude Code**.
 | `./install.sh --target codex`           | Cài cho OpenAI Codex CLI (`~/.codex`, skills vào `~/.agents/skills`)         |
 | `./install.sh --target copilot`         | Cài cho GitHub Copilot CLI và VS Code (`~/.copilot`, skills vào `~/.agents/skills`) |
 | `./install.sh --target claude,codex`    | Cài nhiều target một lần                                                     |
+| `./install.sh --only laravel,go`        | Chỉ cài core + các nhóm stack đã chọn (xem `groups.txt`)                     |
 
 **Installer làm gì:**
 
@@ -500,6 +512,8 @@ my-claude-kit/
 ├── LICENSE            MIT, © 2026 huynhkinhao1910
 ├── AGENT_STANDARD.md  chuẩn viết agent/skill/command
 ├── lint.py            kiểm tra theo chuẩn
+├── groups.txt         nhóm stack cho --only
+├── bin/cli.js         menu cài đặt cho npx (package.json)
 └── install.sh
 ```
 
