@@ -99,5 +99,81 @@ class InstallTest(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
 
 
+class MultiTargetInstallTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        root = Path(self.tmp.name)
+        self.claude, self.codex = root / ".claude", root / ".codex"
+        self.copilot, self.agents = root / ".copilot", root / ".agents"
+        own_skill = self.agents / "skills" / "my-own-skill"
+        own_skill.mkdir(parents=True)
+        (own_skill / "SKILL.md").write_text("mine", encoding="utf-8")
+        (self.copilot / "agents").mkdir(parents=True)
+        (self.copilot / "agents" / "mine.agent.md").write_text("mine", encoding="utf-8")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def install(self, *args):
+        env = {**os.environ, "CLAUDE_DIR": str(self.claude), "CODEX_HOME": str(self.codex),
+               "COPILOT_HOME": str(self.copilot), "AGENTS_HOME": str(self.agents)}
+        return subprocess.run(["bash", str(KIT_ROOT / "install.sh"), *args],
+                              env=env, capture_output=True, text=True, timeout=120)
+
+    def test_installs_codex_and_copilot(self):
+        r = self.install("--target", "codex,copilot")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue((self.codex / "AGENTS.md").is_file())
+        self.assertTrue((self.codex / "agents" / "planner.toml").is_file())
+        self.assertTrue((self.codex / "my-claude-kit" / "rules" / "php" / "coding-style.md").is_file())
+        self.assertTrue((self.copilot / "copilot-instructions.md").is_file())
+        self.assertTrue((self.copilot / "agents" / "planner.agent.md").is_file())
+        self.assertTrue((self.copilot / "instructions" / "php-coding-style.instructions.md").is_file())
+        self.assertTrue((self.agents / "skills" / "debugging" / "SKILL.md").is_file())
+        self.assertTrue((self.agents / "skills" / "quick" / "SKILL.md").is_file())
+        self.assertFalse((self.agents / "skills" / "continuous-learning-v2").exists())
+        self.assertFalse(self.claude.exists(), "claude target must not run")
+
+    def test_equals_form_works(self):
+        r = self.install("--target=codex")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue((self.codex / "agents" / "planner.toml").is_file())
+        self.assertFalse((self.copilot / "copilot-instructions.md").exists())
+
+    def test_keeps_items_the_kit_does_not_own(self):
+        self.install("--target", "codex,copilot")
+        self.assertEqual((self.agents / "skills" / "my-own-skill" / "SKILL.md").read_text(), "mine")
+        self.assertEqual((self.copilot / "agents" / "mine.agent.md").read_text(), "mine")
+
+    def test_reinstall_backs_up_overwritten_items(self):
+        self.install("--target", "codex")
+        (self.codex / "AGENTS.md").write_text("edited", encoding="utf-8")
+        r = self.install("--target", "codex")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        backups = list((self.codex / ".backup").glob("my-claude-kit-*/AGENTS.md"))
+        self.assertEqual([b.read_text() for b in backups], ["edited"])
+
+    def test_no_claude_md_skips_instruction_files(self):
+        r = self.install("--target", "codex,copilot", "--no-claude-md")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse((self.codex / "AGENTS.md").exists())
+        self.assertFalse((self.copilot / "copilot-instructions.md").exists())
+        self.assertTrue((self.codex / "agents" / "planner.toml").is_file())
+
+    def test_unknown_target_writes_nothing(self):
+        r = self.install("--target", "codex,codx")
+        self.assertEqual(r.returncode, 2)
+        self.assertFalse(self.codex.exists())
+        self.assertFalse(self.claude.exists())
+
+    def test_empty_target_is_rejected(self):
+        self.assertEqual(self.install("--target=").returncode, 2)
+
+    def test_dry_run_writes_nothing(self):
+        r = self.install("--target", "codex,copilot", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse(self.codex.exists())
+        self.assertFalse((self.copilot / "copilot-instructions.md").exists())
+
 if __name__ == "__main__":
     unittest.main()
