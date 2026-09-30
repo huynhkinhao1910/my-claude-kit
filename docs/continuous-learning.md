@@ -197,10 +197,12 @@ Có 3 mức, chọn theo máy:
 | Mức | Cách đặt | Ghi observation | Sinh instinct | Inject | Tốn token |
 |-----|----------|:---:|:---:|:---:|:---:|
 | **Tắt hẳn** | `touch ~/.local/share/ecc-homunculus/disabled` hoặc `./install.sh --no-hooks` | ✗ | ✗ | ✗ | ✗ |
-| **Chỉ ghi** (mặc định sau khi cài) | observer.enabled = false | ✓ | ✗ (chỉ instinct bạn viết tay hoặc import) | ✓ instinct có sẵn | ✗ |
-| **Học tự động** | observer.enabled = true | ✓ | ✓ mỗi 5 phút | ✓ | ít (Haiku) |
+| **Chỉ ghi** | observer.enabled = false | ✓ | ✗ (chỉ instinct bạn viết tay hoặc import) | ✓ instinct có sẵn | ✗ |
+| **Học tự động** (mặc định sau khi cài) | observer.enabled = true | ✓ | ✓ mỗi 5 phút | ✓ | ít (Haiku) |
 
 ### Bật observer (học tự động)
+
+Kit bật observer sẵn (`config.json` trong skill có `"enabled": true`). Chỉ cần làm bước dưới nếu trước đó bạn đã tạo config riêng với `"enabled": false`.
 
 Tạo config **của bạn** trong data dir. Không sửa `config.json` trong skill, vì cài lại kit sẽ ghi đè file đó.
 
