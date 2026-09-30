@@ -39,7 +39,7 @@ Bộ agent, skill, command, rules và hook cá nhân cho **Claude Code**, đư�
 | `bash`, `git`, `python3`                              | ✅           | installer, hooks, continuous learning                                                                   |
 | `jq`                                                  | ✅           | `guard.sh` và `post-edit-format.sh`. **Thiếu `jq` thì guard không chặn được gì**, installer sẽ cảnh báo |
 | `glab` (đã chạy `glab auth login`)                    | cho `/ship`  | mở GitLab MR. Thiếu thì `/ship` chỉ in MR description ra                                                |
-| `claude` CLI                                          | cho observer | observer tự học chạy bằng Haiku (mặc định tắt)                                                          |
+| `claude` CLI                                          | cho observer | observer tự học chạy bằng Haiku (mặc định bật)                                                          |
 | `composer`/`pint`, `node`/`tsc`, `go`/`golangci-lint`, `uv`/`ruff`/`mypy` | theo project | để `/verify`, `/quick`, `/build-fix` chạy được bước kiểm tra                                            |
 
 ```bash
@@ -471,10 +471,10 @@ Claude ghi lại cách bạn làm việc theo từng project. Từ đó rút ra 
 | Thành phần                                 | Việc                                                                                 |
 | ------------------------------------------ | ------------------------------------------------------------------------------------ |
 | `observe.sh` (PreToolUse/PostToolUse)      | Ghi tool call vào `~/.local/share/ecc-homunculus/projects/<hash>/observations.jsonl` |
-| Observer (Haiku, **mặc định tắt**)         | Phân tích observation thành instinct, 5 phút một lần                                 |
+| Observer (Haiku, **mặc định bật**)         | Phân tích observation thành instinct, 5 phút một lần                                 |
 | `hooks/inject-instincts.py` (SessionStart) | Nạp instinct có confidence ≥ 0.5, tối đa 10, instinct của project xếp trước          |
 
-- **Bật observer:** đặt `"observer": {"enabled": true}` trong `~/.local/share/ecc-homunculus/config.json`. Đừng sửa file config trong skill, vì cài lại sẽ bị ghi đè.
+- **Tắt observer (vẫn ghi, không tự học):** đặt `"observer": {"enabled": false}` trong `~/.local/share/ecc-homunculus/config.json`. File này được ưu tiên hơn config trong skill và không bị cài lại ghi đè.
 - **Tắt hẳn:** `touch ~/.local/share/ecc-homunculus/disabled`.
 - **Mang sang máy khác:** `/instinct-export`, rồi `/instinct-import`. Project ID tính từ git remote nên khớp giữa các máy.
 
