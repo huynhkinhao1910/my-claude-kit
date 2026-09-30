@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Install My Claude Kit into a Claude Code config dir.
-# Usage: ./install.sh [--target claude,codex,copilot] [--dry-run] [--no-hooks] [--no-claude-md]
+# Usage: ./install.sh [--target claude,codex,copilot] [--only <group,...>] [--dry-run] [--no-hooks] [--no-claude-md]
 #   --target        comma list of AI tools to install for (default: claude)
+#   --only          install core plus these stack groups from groups.txt (default: everything)
 #   --dry-run       print what would happen, change nothing
 #   --no-hooks      copy files only; do not register hooks or deny rules in settings.json
 #   --no-claude-md  keep the machine's own ~/.claude/CLAUDE.md
@@ -25,6 +26,7 @@ CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 COPILOT_HOME="${COPILOT_HOME:-$HOME/.copilot}"
 AGENTS_HOME="${AGENTS_HOME:-$HOME/.agents}"
 TARGETS="claude"
+ONLY=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) DRY_RUN=1 ;;
@@ -32,6 +34,8 @@ while [ $# -gt 0 ]; do
     --no-claude-md) INSTALL_CLAUDE_MD=0 ;;
     --target=*) TARGETS="${1#--target=}" ;;
     --target) TARGETS="${2:-}"; [ $# -gt 1 ] && shift ;;
+    --only=*) ONLY="${1#--only=}" ;;
+    --only) ONLY="${2:-}"; [ $# -gt 1 ] && shift ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
   shift
@@ -42,6 +46,26 @@ for t in $TARGETS; do
   case "$t" in claude|codex|copilot) ;; *) echo "unknown target: $t (use claude, codex, copilot)" >&2; exit 2 ;; esac
 done
 has_target() { case "$TARGETS" in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
+
+# --only: SKIP lists "<kind>/<name>" items that belong to groups.txt but to no selected group.
+SKIP=" "
+if [ -n "$ONLY" ]; then
+  all_groups="" picked=" " grouped=" "
+  while IFS=: read -r group items; do
+    case "$group" in ''|'#'*) continue ;; esac
+    all_groups="$all_groups $group"
+    grouped="$grouped$items "
+    case ",$ONLY," in *",$group,"*) picked="$picked$items " ;; esac
+  done < "$KIT_DIR/groups.txt"
+  for g in ${ONLY//,/ }; do
+    case " $all_groups " in *" $g "*) ;; *) echo "unknown group: $g (use:$all_groups)" >&2; exit 2 ;; esac
+  done
+  for item in $grouped; do
+    case "$picked" in *" $item "*) ;; *) SKIP="$SKIP$item " ;; esac
+  done
+fi
+# want <kind>/<name>: true unless --only excluded it.
+want() { case "$SKIP" in *" $1 "*) return 1 ;; *) return 0 ;; esac; }
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
 BACKUP_DIR="$CLAUDE_DIR/.backup/my-claude-kit-$STAMP"
@@ -75,13 +99,20 @@ retire_item() {
 }
 
 if has_target claude; then
-  for f in "$KIT_DIR"/agents/*.md;   do install_item "$f" "$CLAUDE_DIR/agents/$(basename "$f")"; done
-  for f in "$KIT_DIR"/commands/*.md; do install_item "$f" "$CLAUDE_DIR/commands/$(basename "$f")"; done
-  for d in "$KIT_DIR"/skills/*/;     do d="${d%/}"; install_item "$d" "$CLAUDE_DIR/skills/$(basename "$d")"; done
+  for f in "$KIT_DIR"/agents/*.md; do
+    if want "agents/$(basename "$f" .md)"; then install_item "$f" "$CLAUDE_DIR/agents/$(basename "$f")"; fi
+  done
+  for f in "$KIT_DIR"/commands/*.md; do
+    if want "commands/$(basename "$f" .md)"; then install_item "$f" "$CLAUDE_DIR/commands/$(basename "$f")"; fi
+  done
+  for d in "$KIT_DIR"/skills/*/; do
+    d="${d%/}"; if want "skills/$(basename "$d")"; then install_item "$d" "$CLAUDE_DIR/skills/$(basename "$d")"; fi
+  done
   # Language rules link to ../common, so every kit rule dir shares one namespace.
   kit_rules=""
   for d in "$KIT_DIR"/rules/*/; do
     d="${d%/}"; name="$(basename "$d")"
+    want "rules/$name" || continue
     install_item "$d" "$CLAUDE_DIR/rules/$RULES_NS/$name"
     kit_rules="$kit_rules $name"
   done
@@ -118,20 +149,34 @@ fi
 
 # Codex and Copilot share ~/.agents/skills. continuous-learning-v2 hard-codes ~/.claude paths.
 if has_target codex || has_target copilot; then
-  for d in "$KIT_DIR"/skills/*/ "$KIT_DIR"/dotagents/skills/*/; do
+  for d in "$KIT_DIR"/skills/*/; do
     d="${d%/}"; name="$(basename "$d")"
     [ "$name" = "continuous-learning-v2" ] && continue
-    install_item "$d" "$AGENTS_HOME/skills/$name" "$AGENTS_HOME"
+    if want "skills/$name"; then install_item "$d" "$AGENTS_HOME/skills/$name" "$AGENTS_HOME"; fi
+  done
+  for d in "$KIT_DIR"/dotagents/skills/*/; do  # kit commands packaged as skills
+    d="${d%/}"; name="$(basename "$d")"
+    if want "commands/$name"; then install_item "$d" "$AGENTS_HOME/skills/$name" "$AGENTS_HOME"; fi
   done
 fi
 if has_target codex; then
-  for f in "$KIT_DIR"/codex/agents/*.toml; do install_item "$f" "$CODEX_HOME/agents/$(basename "$f")" "$CODEX_HOME"; done
-  install_item "$KIT_DIR/codex/my-claude-kit" "$CODEX_HOME/my-claude-kit" "$CODEX_HOME"
+  for f in "$KIT_DIR"/codex/agents/*.toml; do
+    if want "agents/$(basename "$f" .toml)"; then install_item "$f" "$CODEX_HOME/agents/$(basename "$f")" "$CODEX_HOME"; fi
+  done
+  for d in "$KIT_DIR"/codex/my-claude-kit/rules/*/; do
+    d="${d%/}"; name="$(basename "$d")"
+    if want "rules/$name"; then install_item "$d" "$CODEX_HOME/my-claude-kit/rules/$name" "$CODEX_HOME"; fi
+  done
   if [ "$INSTALL_CLAUDE_MD" -eq 1 ]; then install_item "$KIT_DIR/codex/AGENTS.md" "$CODEX_HOME/AGENTS.md" "$CODEX_HOME"; fi
 fi
 if has_target copilot; then
-  for f in "$KIT_DIR"/copilot/agents/*.agent.md; do install_item "$f" "$COPILOT_HOME/agents/$(basename "$f")" "$COPILOT_HOME"; done
-  for f in "$KIT_DIR"/copilot/instructions/*.instructions.md; do install_item "$f" "$COPILOT_HOME/instructions/$(basename "$f")" "$COPILOT_HOME"; done
+  for f in "$KIT_DIR"/copilot/agents/*.agent.md; do
+    if want "agents/$(basename "$f" .agent.md)"; then install_item "$f" "$COPILOT_HOME/agents/$(basename "$f")" "$COPILOT_HOME"; fi
+  done
+  for f in "$KIT_DIR"/copilot/instructions/*.instructions.md; do  # named <rule-dir>-<file>
+    name="$(basename "$f")"
+    if want "rules/${name%%-*}"; then install_item "$f" "$COPILOT_HOME/instructions/$name" "$COPILOT_HOME"; fi
+  done
   if [ "$INSTALL_CLAUDE_MD" -eq 1 ]; then install_item "$KIT_DIR/copilot/copilot-instructions.md" "$COPILOT_HOME/copilot-instructions.md" "$COPILOT_HOME"; fi
 fi
 

@@ -1,0 +1,14 @@
+{
+  "name": "my-claude-kit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Agents, skills, commands and rules for Claude Code, Codex and GitHub Copilot",
+  "license": "MIT",
+  "type": "module",
+  "bin": { "my-claude-kit": "bin/cli.js" },
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "python3 -m unittest discover -s tests && node --test \"tests/*.test.mjs\""
+  },
+  "dependencies": { "@clack/prompts": "^1.8.1" }
+}

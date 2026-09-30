@@ -180,5 +180,72 @@ class MultiTargetInstallTest(unittest.TestCase):
         self.assertFalse(self.codex.exists())
         self.assertFalse((self.copilot / "copilot-instructions.md").exists())
 
+
+class OnlyGroupsInstallTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        root = Path(self.tmp.name)
+        self.claude, self.codex = root / ".claude", root / ".codex"
+        self.copilot, self.agents = root / ".copilot", root / ".agents"
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def install(self, *args):
+        env = {**os.environ, "CLAUDE_DIR": str(self.claude), "CODEX_HOME": str(self.codex),
+               "COPILOT_HOME": str(self.copilot), "AGENTS_HOME": str(self.agents)}
+        return subprocess.run(["bash", str(KIT_ROOT / "install.sh"), "--no-hooks", *args],
+                              env=env, capture_output=True, text=True, timeout=120)
+
+    def test_claude_only_go_installs_core_and_go(self):
+        r = self.install("--only", "go")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue((self.claude / "skills" / "golang-patterns").is_dir())
+        self.assertTrue((self.claude / "skills" / "debugging").is_dir())
+        self.assertTrue((self.claude / "commands" / "go-build.md").is_file())
+        self.assertTrue((self.claude / "agents" / "planner.md").is_file())
+        self.assertTrue((self.claude / "rules" / "my-claude-kit" / "golang").is_dir())
+        self.assertTrue((self.claude / "rules" / "my-claude-kit" / "common").is_dir())
+        self.assertFalse((self.claude / "skills" / "laravel-patterns").exists())
+        self.assertFalse((self.claude / "agents" / "laravel-reviewer.md").exists())
+        self.assertFalse((self.claude / "commands" / "react-build.md").exists())
+        self.assertFalse((self.claude / "rules" / "my-claude-kit" / "php").exists())
+
+    def test_item_shared_by_groups_installs_if_any_selected(self):
+        r = self.install("--only=nestjs")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue((self.claude / "agents" / "typescript-reviewer.md").is_file())
+        self.assertFalse((self.claude / "agents" / "e2e-runner.md").exists())
+
+    def test_codex_and_copilot_respect_only(self):
+        r = self.install("--target", "codex,copilot", "--only", "go")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue((self.codex / "agents" / "go-reviewer.toml").is_file())
+        self.assertFalse((self.codex / "agents" / "laravel-reviewer.toml").exists())
+        self.assertTrue((self.codex / "my-claude-kit" / "rules" / "golang").is_dir())
+        self.assertFalse((self.codex / "my-claude-kit" / "rules" / "php").exists())
+        self.assertTrue((self.copilot / "agents" / "go-reviewer.agent.md").is_file())
+        self.assertFalse((self.copilot / "agents" / "vue-reviewer.agent.md").exists())
+        self.assertTrue((self.copilot / "instructions" / "golang-testing.instructions.md").is_file())
+        self.assertTrue((self.copilot / "instructions" / "common-testing.instructions.md").is_file())
+        self.assertFalse((self.copilot / "instructions" / "php-testing.instructions.md").exists())
+        self.assertTrue((self.agents / "skills" / "go-build" / "SKILL.md").is_file())
+        self.assertTrue((self.agents / "skills" / "quick" / "SKILL.md").is_file())
+        self.assertFalse((self.agents / "skills" / "react-build").exists())
+        self.assertFalse((self.agents / "skills" / "laravel-patterns").exists())
+
+    def test_without_only_installs_everything(self):
+        r = self.install()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue((self.claude / "skills" / "laravel-patterns").is_dir())
+        self.assertTrue((self.claude / "agents" / "python-reviewer.md").is_file())
+
+    def test_unknown_group_writes_nothing(self):
+        r = self.install("--only", "go,rust")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("unknown group: rust", r.stderr)
+        self.assertFalse(self.claude.exists())
+
+
 if __name__ == "__main__":
     unittest.main()
