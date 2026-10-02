@@ -11,7 +11,7 @@ skills: feature-docs, gitlab-mr
 Document what shipped, not what was planned.
 
 ## Process
-1. Read `spec.md`, `plan.md`, `review.md`, `STATUS.md`; run `git diff <base>...HEAD --stat` and read the diff.
+1. Read `spec.md`, `plan.md`, `review.md`, `STATUS.md` (and `ui-test-report.md` if present — put its result table in the MR description under "UI test"); run `git diff <base>...HEAD --stat` and read the diff.
 2. List every deviation between plan and diff.
 3. Write `docs/features/<slug>/feature-doc.md` (template in `feature-docs`).
 4. Write `docs/features/<slug>/mr-description.md` (template in `gitlab-mr`).

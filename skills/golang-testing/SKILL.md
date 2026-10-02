@@ -641,6 +641,16 @@ func TestAPIHandler(t *testing.T) {
 }
 ```
 
+### Query budget (N+1 guard)
+
+Wrap the test DB driver with a counter (for example `sqlhooks`, or a repository decorator). Seed more rows than one page, call the handler, and assert the count:
+
+```go
+if got := counter.Queries(); got > 4 {
+    t.Fatalf("GET /orders ran %d queries, budget 4 (N+1?)", got)
+}
+```
+
 ## Testing Commands
 
 ```bash

@@ -1,6 +1,6 @@
 ---
 name: mysql-patterns
-description: MySQL and MariaDB schema, query, indexing, transaction, replication, and connection-pool patterns for production backends.
+description: MySQL and MariaDB schema, query, indexing, transaction, replication and connection-pool patterns for production backends, plus a measured optimize loop (baseline, per-request query capture, EXPLAIN, one change, re-measure, verify on the web). Use when designing tables or indexes, fixing slow queries or slow pages, or asked to "tối ưu database" / "query chậm". Do NOT use for PostgreSQL-only projects or front-end rendering performance (react-performance).
 origin: My Claude Kit
 ---
 
@@ -19,6 +19,7 @@ details.
 - Debugging slow queries, lock waits, deadlocks, or connection exhaustion
 - Adding keyset pagination, upserts, full-text search, JSON columns, or queues
 - Configuring application connection pools, read replicas, TLS, or slow logs
+- Optimizing a slow page, endpoint or job with before/after numbers ([references/profiling.md](references/profiling.md))
 
 ## Version Check
 
@@ -306,6 +307,10 @@ SET GLOBAL log_queries_not_using_indexes = 'ON';
 Use `EXPLAIN ANALYZE` only when it is safe to execute the query. It runs the
 statement and can be expensive on production-sized data.
 
+For the full optimize loop (baseline, queries per request, plan reading, one
+change at a time, re-measure, browser and `Server-Timing` checks, before/after
+report), follow [references/profiling.md](references/profiling.md).
+
 ## Replication
 
 Read replicas can lag. Do not route read-your-own-write paths, checkout flows,
@@ -409,4 +414,4 @@ When this skill is used for review, return:
 - Skill: `database-migrations` - migration planning and rollout safety
 - Skill: `scalability` - bounded queries, keyset pagination, replicas and connection budgets
 - Skill: `security-review` - secret handling, auth, and least privilege
-- Agent: `database-reviewer` - broader database review workflow
+- Agent: `database-reviewer` - diff review (`review` mode) and measured optimization (`profile` mode)

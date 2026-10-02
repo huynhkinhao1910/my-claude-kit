@@ -222,6 +222,17 @@ describe('UsersController', () => {
 - Add request-level tests for guards, validation pipes, and exception filters.
 - Reuse the same global pipes/filters in tests that you use in production.
 
+### Query budget (N+1 guard)
+
+For list or detail endpoints, count the queries in an e2e test against the test database, using more rows than one page:
+
+```ts
+// TypeORM calls logger.logQuery for every query; Prisma: prisma.$on('query', ...) with log: [{ emit: 'event', level: 'query' }]
+const spy = jest.spyOn(dataSource.logger, 'logQuery');
+await request(app.getHttpServer()).get('/api/v1/orders?limit=20').expect(200);
+expect(spy.mock.calls.length).toBeLessThanOrEqual(4); // must not grow with the row count
+```
+
 ## Production Defaults
 
 - Enable structured logging and request correlation ids.

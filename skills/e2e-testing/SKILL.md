@@ -1,12 +1,14 @@
 ---
 name: e2e-testing
-description: Playwright E2E testing patterns, Page Object Model, configuration, CI/CD integration, artifact management, and flaky test strategies.
+description: Playwright E2E testing patterns (Page Object Model, configuration, CI/CD, artifacts, flaky tests) plus running UI test cases step by step through a browser MCP (Playwright MCP or claude-in-chrome) with UI, network and console assertions and a per-TC report. Use when writing E2E specs, running or reproducing user flows on a running app, or turning spec ACs into UI checks. Do NOT use for unit/feature tests (laravel-tdd, react-testing) or post-deploy smoke and accessibility checks (browser-qa).
 origin: My Claude Kit
 ---
 
 # E2E Testing Patterns
 
 Comprehensive Playwright patterns for building stable, fast, and maintainable E2E test suites.
+
+To run test cases (from spec ACs or `test-cases.md`) live through a browser MCP, with no test code up front, follow [references/mcp-test-run.md](references/mcp-test-run.md). Its passing cases are codified with the patterns below.
 
 ## Test File Organization
 

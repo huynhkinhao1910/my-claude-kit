@@ -21,7 +21,7 @@ Agents live in `~/.claude/agents/`. Every agent follows `AGENT_STANDARD.md`: rev
 
 1. New feature or non-trivial change: run `/feature` (spec → plan → implement → verify → review → ship).
 2. Small fix or change (≤ ~3 files, no new contract, no auth/payments): run `/quick`, which has one approval gate before commit.
-3. Cause unknown: run `/debug` first (the `debugging` skill), and fix only after the root cause is proven.
+3. Cause unknown: run `/debug` first (the `debugging` skill), and fix only after the root cause is proven. Slow page or API: `/debug` splits the time first, and only a DB-bound case goes to `database-reviewer` in `profile` mode. A UI flow to check or reproduce: `/ui-test <slug|url>` (`e2e-runner`).
 4. Bug fix: `test-writer` reproduces the bug with a failing test, then `implementer` makes it pass.
 5. Code just changed: run `/code-review` (local changes, read-only), or `/review <slug>` inside the pipeline. Both route by file type: `*.php` to laravel-reviewer, `*.vue` to vue-reviewer, `*.tsx`/`*.jsx` to react-reviewer, `*.ts`/`*.js` to typescript-reviewer, and `*.go` to go-reviewer.
 6. Build, type or lint failure: run `/build-fix`, which picks the matching resolver. Dead code cleanup: `/refactor-clean` (`refactor-cleaner`).
