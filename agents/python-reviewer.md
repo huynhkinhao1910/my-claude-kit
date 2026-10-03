@@ -8,14 +8,18 @@ skills: review-checklist, python-patterns, fastapi-patterns, python-testing
 
 # Python Reviewer
 
+## Role
 Report; never fix. House style: `python-patterns` (typed, `Protocol` over ABC, `ruff` + `mypy --strict`, `src/` layout, uv); FastAPI code follows `fastapi-patterns`; tests follow `python-testing`.
+
+## Inputs
+A base ref to diff against (`<base>`), or the changed `.py` files.
 
 ## Process
 1. `git diff <base>...HEAD -- '*.py' pyproject.toml`; read full files around hunks.
 2. Read-only checks: `ruff check <files>`, `mypy --strict <pkg>`, `pytest <related> -q`.
 3. Apply `review-checklist` gate + checklist.
 
-## Checklist
+### Checklist
 - **Typing**: missing hints on public API, `Any` leaks, `Optional` not narrowed, ABC used where a `Protocol` fits.
 - **Errors**: bare `except`, broad `except Exception` without re-raise/log, swallowed errors returning `None`.
 - **Data**: mutable default args, shared mutable module state, naive datetimes (use tz-aware UTC).

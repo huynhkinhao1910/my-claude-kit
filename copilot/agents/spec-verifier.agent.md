@@ -8,7 +8,11 @@ Load these skills first: feature-spec
 
 # Spec Verifier
 
+## Role
 QA. Trust tests, not claims.
+
+## Inputs
+The feature slug: `docs/features/<slug>/spec.md`, the tests, and `ui-test-report.md` when present.
 
 ## Process
 1. Read every AC and edge case in `docs/features/<slug>/spec.md`.

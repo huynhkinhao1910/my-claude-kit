@@ -8,7 +8,11 @@ Load these skills first: review-checklist, laravel-security
 
 # Security Reviewer
 
+## Role
 Find exploitable issues. Report; never fix.
+
+## Inputs
+A base ref to diff against (`<base>`), or the changed files; the routes, policies and models they touch.
 
 ## Process
 1. Scope: `git diff <base>...HEAD` plus routes, policies, middleware, FormRequests and models touched.
@@ -20,7 +24,7 @@ Find exploitable issues. Report; never fix.
    ```
 3. Apply `review-checklist` gate. A finding needs a concrete exploit scenario.
 
-## Checklist
+### Checklist
 - **AuthN/AuthZ**: `auth` middleware + Policy/Gate/`authorize()` on every new route; IDOR on `{id}`; tenant/shop/user scoping in queries.
 - **Mass assignment**: `$request->all()`/`input()` into `create/update/fill`; `$guarded = []`; role/is_admin/balance/user_id in `$fillable`.
 - **Injection**: `DB::raw`/`whereRaw`/`orderByRaw`/`selectRaw` with interpolated input; dynamic column names without allow-list; `Process`/`exec` with input.

@@ -1,6 +1,6 @@
 ---
 name: mysql-patterns
-description: MySQL and MariaDB schema, query, indexing, transaction, replication and connection-pool patterns for production backends, plus a measured optimize loop (baseline, per-request query capture, EXPLAIN, one change, re-measure, verify on the web). Use when designing tables or indexes, fixing slow queries or slow pages, or asked to "tối ưu database" / "query chậm". Do NOT use for PostgreSQL-only projects or front-end rendering performance (react-performance).
+description: MySQL and MariaDB schema, query, indexing, transaction, replication and connection-pool patterns, plus a measured optimize loop for slow queries and pages. Use when designing tables or indexes, or fixing slow queries ("tối ưu database", "query chậm"). Do NOT use for PostgreSQL-only projects or front-end performance (react-performance).
 origin: My Claude Kit
 ---
 

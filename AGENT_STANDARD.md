@@ -50,7 +50,7 @@ Rules:
 | Fix build | build-error-resolver, go-build-resolver, react-build-resolver | sonnet | yes |
 | Review | laravel-reviewer, security-reviewer, scalability-reviewer (opus); typescript-reviewer, vue-reviewer, react-reviewer, go-reviewer, python-reviewer, database-reviewer, silent-failure-hunter, code-reviewer (fallback) (sonnet) | opus/sonnet | no |
 | Verify | spec-verifier | sonnet | no |
-| E2E | e2e-runner | sonnet | tests only |
+| E2E | e2e-runner | sonnet | docs only |
 | Ship | doc-writer (sonnet), commit-message-writer (haiku) | sonnet/haiku | docs only |
 | Maintenance | refactor-cleaner | sonnet | yes |
 

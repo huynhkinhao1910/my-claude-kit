@@ -204,6 +204,9 @@ class OnlyGroupsInstallTest(unittest.TestCase):
         self.assertTrue((self.claude / "skills" / "debugging").is_dir())
         self.assertTrue((self.claude / "commands" / "go-build.md").is_file())
         self.assertTrue((self.claude / "agents" / "planner.md").is_file())
+        self.assertTrue((self.claude / "agents" / "e2e-runner.md").is_file())
+        self.assertTrue((self.claude / "agents" / "database-reviewer.md").is_file())
+        self.assertTrue((self.claude / "skills" / "ui-test-cases").is_dir())
         self.assertTrue((self.claude / "rules" / "my-claude-kit" / "golang").is_dir())
         self.assertTrue((self.claude / "rules" / "my-claude-kit" / "common").is_dir())
         self.assertFalse((self.claude / "skills" / "laravel-patterns").exists())
@@ -215,7 +218,7 @@ class OnlyGroupsInstallTest(unittest.TestCase):
         r = self.install("--only=nestjs")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertTrue((self.claude / "agents" / "typescript-reviewer.md").is_file())
-        self.assertFalse((self.claude / "agents" / "e2e-runner.md").exists())
+        self.assertFalse((self.claude / "skills" / "browser-qa").exists())
 
     def test_codex_and_copilot_respect_only(self):
         r = self.install("--target", "codex,copilot", "--only", "go")

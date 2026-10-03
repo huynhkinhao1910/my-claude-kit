@@ -6,11 +6,12 @@ Server-level visibility (slow log, `performance_schema` digests, SLO targets, lo
 
 ## 0. Is it the database?
 
-A slow page is often not a DB problem: front-end rendering, external APIs, synchronous work and worker saturation are common too. Before this loop, confirm that DB time is the biggest share of the request (at least half of server time), using `debugging` → `references/slow-triage.md`. If it is not, stop and report the breakdown instead of tuning queries.
+Confirm first that DB time is at least half of server time, with `debugging` → `references/slow-triage.md`. If it is not, stop and report the breakdown instead of tuning queries.
 
 ## Safety
 
 - Run against **local, dev or staging** only. Never point profiling at a production connection unless the user explicitly says so and names the read replica to use.
+- `curl` sends GET only. A write endpoint or a job is measured from the query log of a run that the user or `implementer` triggers; never send the write yourself.
 - `EXPLAIN` is safe. `EXPLAIN ANALYZE` **executes** the statement, so use it on `SELECT` only and expect it to take as long as the query itself.
 - `SET GLOBAL ...` changes server config. Do it only on a local or dev DB the user has handed over, and note every change so it can be reverted.
 - Browser checks stay read-only. Open pages and read timings, but do not submit forms or click delete, checkout or mass-update buttons.
@@ -96,36 +97,31 @@ Repeat section 1 with the same request, data and warm or cold state. Keep a chan
 
 Confirm the improvement where the user feels it, not only in SQL.
 
-**Browser (claude-in-chrome or Playwright MCP)**
+1. Open the page in claude-in-chrome, load it once to warm up, then reload.
+2. Run the timing snippet from `debugging` → `references/slow-triage.md` §1 and compare each API's `ms` (and `ttfb`/`server` when available) with the baseline.
+3. Check `read_network_requests` and `read_console_messages`: no new 4xx/5xx and no new console errors.
 
-1. Open the page in a new tab. Load it once to warm up, then reload.
-2. Read the network requests. For each XHR/fetch call to the API, record status, duration, and TTFB where the tool exposes it.
-3. Read navigation timing from the page:
-   ```js
-   (() => { const n = performance.getEntriesByType('navigation')[0];
-     return { ttfb: n.responseStart - n.requestStart, dcl: n.domContentLoadedEventEnd, load: n.loadEventEnd }; })()
-   ```
-4. Read API timings, including `Server-Timing` when the backend sends it:
-   ```js
-   performance.getEntriesByType('resource')
-     .filter(r => ['fetch', 'xmlhttprequest'].includes(r.initiatorType))
-     .map(r => ({ url: r.name, ms: Math.round(r.duration), ttfb: Math.round(r.responseStart - r.requestStart), server: r.serverTiming }))
-   ```
-5. Check for errors: no new 4xx/5xx responses and no new console errors.
+Without a browser, run the curl loop from section 1 for every API the page calls.
 
-**Server-Timing header (optional, recommended)**
-
-Let the backend report DB time per request so that both the browser and curl can see it:
+**Server-Timing header (optional, recommended).** Let the backend report DB time per request, so both the browser and curl see it:
 
 ```php
-// Laravel middleware, local/staging only
-$response->headers->set('Server-Timing', sprintf('db;dur=%.1f;desc="%d queries", app;dur=%.1f',
-    $dbMs, $queryCount, (microtime(true) - LARAVEL_START) * 1000));
+// Laravel middleware, local/staging only: it leaks timing information.
+public function handle(Request $request, Closure $next): Response
+{
+    $dbMs = 0.0;
+    $queries = 0;
+    DB::listen(function ($q) use (&$dbMs, &$queries) { $dbMs += $q->time; $queries++; });
+
+    $response = $next($request);
+    $response->headers->set('Server-Timing', sprintf('db;dur=%.1f;desc="%d queries", app;dur=%.1f',
+        $dbMs, $queries, (microtime(true) - LARAVEL_START) * 1000));
+    // SPA on another origin: without this the browser hides ttfb and Server-Timing of the API.
+    $response->headers->set('Timing-Allow-Origin', 'http://localhost:3000');
+
+    return $response;
+}
 ```
-
-Keep this off in production, or limit it to internal IPs, because it leaks timing information.
-
-**Without a browser**, run the curl loop from section 1 for every API the page calls.
 
 ## 7. Report
 

@@ -4,7 +4,7 @@
 
 ## 1. Browser or server?
 
-Open the page in a browser MCP (claude-in-chrome or Playwright), load it once to warm up, then reload and read:
+Open the page in claude-in-chrome, load it once to warm up, then reload and read:
 
 ```js
 (() => {
@@ -21,6 +21,8 @@ Open the page in a browser MCP (claude-in-chrome or Playwright), load it once to
   };
 })()
 ```
+
+Cross-origin API (SPA on :3000, API on :8000): `ttfb` reads 0 and `server` is empty unless the API sends `Timing-Allow-Origin`. `ms` is always correct; use it, or add the header (`mysql-patterns` → `references/profiling.md` §6).
 
 | What dominates | Bucket | Go to |
 |----------------|--------|-------|

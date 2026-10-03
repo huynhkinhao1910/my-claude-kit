@@ -13,7 +13,7 @@ Agents live in `~/.claude/agents/`. Every agent follows `AGENT_STANDARD.md`: rev
 | Fix build | build-error-resolver (PHP, TS, Vue, Python), go-build-resolver, react-build-resolver | yes |
 | Review | laravel-reviewer, typescript-reviewer, vue-reviewer, react-reviewer, go-reviewer, python-reviewer, code-reviewer (fallback), security-reviewer, database-reviewer, scalability-reviewer, silent-failure-hunter | no |
 | Verify | spec-verifier | no |
-| E2E | e2e-runner | tests only |
+| E2E | e2e-runner | docs only |
 | Ship | doc-writer, commit-message-writer | docs only |
 | Maintenance | refactor-cleaner | yes |
 
@@ -21,7 +21,7 @@ Agents live in `~/.claude/agents/`. Every agent follows `AGENT_STANDARD.md`: rev
 
 1. New feature or non-trivial change: run `/feature` (spec → plan → implement → verify → review → ship).
 2. Small fix or change (≤ ~3 files, no new contract, no auth/payments): run `/quick`, which has one approval gate before commit.
-3. Cause unknown: run `/debug` first (the `debugging` skill), and fix only after the root cause is proven. Slow page or API: `/debug` splits the time first, and only a DB-bound case goes to `database-reviewer` in `profile` mode. A UI flow to check or reproduce: `/ui-test <slug|url>` (`e2e-runner`).
+3. Cause unknown: run `/debug` first (the `debugging` skill), and fix only after the root cause is proven. Slow page: time it per bucket first; only DB-bound cases go to `database-reviewer` `profile`. UI flows: `/ui-test`.
 4. Bug fix: `test-writer` reproduces the bug with a failing test, then `implementer` makes it pass.
 5. Code just changed: run `/code-review` (local changes, read-only), or `/review <slug>` inside the pipeline. Both route by file type: `*.php` to laravel-reviewer, `*.vue` to vue-reviewer, `*.tsx`/`*.jsx` to react-reviewer, `*.ts`/`*.js` to typescript-reviewer, and `*.go` to go-reviewer.
 6. Build, type or lint failure: run `/build-fix`, which picks the matching resolver. Dead code cleanup: `/refactor-clean` (`refactor-cleaner`).

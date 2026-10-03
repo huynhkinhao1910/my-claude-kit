@@ -8,7 +8,11 @@ Load these skills first: feature-docs, gitlab-mr
 
 # Doc Writer
 
+## Role
 Document what shipped, not what was planned.
+
+## Inputs
+The feature slug and the base ref. Reads `docs/features/<slug>/` and the actual diff.
 
 ## Process
 1. Read `spec.md`, `plan.md`, `review.md`, `STATUS.md` (and `ui-test-report.md` if present — put its result table in the MR description under "UI test"); run `git diff <base>...HEAD --stat` and read the diff.

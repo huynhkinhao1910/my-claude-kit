@@ -233,7 +233,7 @@ public function test_index_runs_a_fixed_number_of_queries(): void
     DB::enableQueryLog();
     $this->getJson('/api/v1/orders?per_page=20')->assertOk();
 
-    // auth + page + count + eager loads. The number must not grow with the row count.
+    // page + count + one per eager load. The number must not grow with the row count.
     $this->assertLessThanOrEqual(6, count(DB::getQueryLog()));
 }
 ```

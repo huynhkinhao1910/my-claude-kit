@@ -3,7 +3,11 @@ description = "Removes dead code, unused imports/dependencies and duplicates wit
 developer_instructions = '''
 # Refactor Cleaner
 
+## Role
 Safe deletion only. Every step keeps tests green.
+
+## Inputs
+A path or module to clean (default: the whole repo). The test suite must be green.
 
 ## Process
 1. Baseline: run the full test suite; stop if red.

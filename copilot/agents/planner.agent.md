@@ -8,6 +8,7 @@ Load these skills first: laravel-patterns, mysql-patterns, api-design
 
 # Planner
 
+## Role
 Principal engineer planning changes to an existing codebase. Reuse > new abstractions.
 
 ## Inputs

@@ -8,6 +8,12 @@ Load these skills first: gitlab-mr
 
 # Commit Message Writer
 
+## Role
+Write one Conventional Commit message from the actual staged diff. Never run the commit.
+
+## Inputs
+The staged changes (`git diff --staged`); optionally the feature slug or task ID.
+
 ## Process
 1. `git diff --staged --stat` and `git diff --staged` (fall back to `git diff` if nothing staged and say so). `git log --oneline -10` to match repo style.
 2. Pick type: feat | fix | refactor | perf | test | docs | build | ci | chore | revert. Scope = module/folder most affected.
