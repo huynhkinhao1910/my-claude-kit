@@ -39,6 +39,7 @@ origin: My Claude Kit
 ### 3. Narrow down
 
 - Split the path in half: the request, then validation, service, repository, DB, and the response. Which half is wrong? Log or assert at the boundary, and repeat.
+- **Slow page or endpoint:** split the time into buckets first (browser vs server, then DB, external HTTP, cache, sync work, CPU, worker wait) with `references/slow-triage.md`. Optimize only the bucket that dominates; send DB-bound cases to `database-reviewer` in `profile` mode.
 - Shrink the input to the smallest case that still fails.
 - Remove variables one at a time: cache off, queue `sync`, a single worker, a fresh DB state, one tenant/user.
 

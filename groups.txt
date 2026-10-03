@@ -1,9 +1,9 @@
 # Stack groups for `install.sh --only <group,...>`.
 # One group per line: "<group>: <kind>/<name> ..." with kind = skills | agents | commands | rules.
 # Anything not listed in any group is core and always installed. An item may sit in several groups.
-laravel: skills/laravel-patterns skills/laravel-plugin-discovery skills/laravel-security skills/laravel-tdd skills/laravel-verification agents/laravel-reviewer agents/database-reviewer rules/php
+laravel: skills/laravel-patterns skills/laravel-plugin-discovery skills/laravel-security skills/laravel-tdd skills/laravel-verification agents/laravel-reviewer rules/php
 go: skills/golang-patterns skills/golang-testing agents/go-reviewer agents/go-build-resolver commands/go-build commands/go-review commands/go-test rules/golang
-frontend: skills/frontend-patterns skills/frontend-design-direction skills/design-system skills/accessibility skills/browser-qa skills/e2e-testing skills/vite-patterns agents/typescript-reviewer agents/e2e-runner rules/web rules/typescript
+frontend: skills/frontend-patterns skills/frontend-design-direction skills/design-system skills/accessibility skills/browser-qa skills/e2e-testing skills/vite-patterns agents/typescript-reviewer rules/web rules/typescript
 react: skills/react-patterns skills/react-performance skills/react-testing skills/nextjs-turbopack skills/frontend-a11y skills/motion-foundations skills/motion-patterns skills/motion-advanced agents/react-reviewer agents/react-build-resolver commands/react-build commands/react-review commands/react-test rules/react
 vue: skills/vue-patterns skills/nuxt4-patterns skills/ui-to-vue agents/vue-reviewer commands/vue-review rules/vue rules/nuxt
 nestjs: skills/nestjs-patterns agents/typescript-reviewer rules/typescript

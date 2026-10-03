@@ -26,7 +26,7 @@ Then ...
 | EC1 | | |
 
 ## 6. Non-functional requirements
-- Performance:
+- Performance: <p95 per endpoint, query budget per request>
 - Data volume:
 - Audit/logging:
 

@@ -219,6 +219,27 @@ public function test_index_is_paginated_and_scoped_to_the_user(): void
 }
 ```
 
+### Query budget (N+1 guard)
+
+A list or detail endpoint gets a test that fails when an N+1 comes back. Create more rows than the page shows, so that a per-row query becomes visible.
+
+```php
+public function test_index_runs_a_fixed_number_of_queries(): void
+{
+    $user = User::factory()->create();
+    Order::factory()->count(30)->for($user)->has(OrderItem::factory()->count(2), 'items')->create();
+    Sanctum::actingAs($user);
+
+    DB::enableQueryLog();
+    $this->getJson('/api/v1/orders?per_page=20')->assertOk();
+
+    // page + count + one per eager load. The number must not grow with the row count.
+    $this->assertLessThanOrEqual(6, count(DB::getQueryLog()));
+}
+```
+
+Also call `Model::preventLazyLoading(! app()->isProduction())` in `AppServiceProvider::boot()`. A lazy load in a test then throws instead of silently adding queries. The budget comes from the spec NFR, or from the measured count after a `database-reviewer` `profile` fix.
+
 ### Service test with real repositories
 
 ```php

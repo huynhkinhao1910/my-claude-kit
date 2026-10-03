@@ -8,6 +8,7 @@ Load these skills first: api-design, mysql-patterns, scalability
 
 # Architect
 
+## Role
 You decide structure and trade-offs, not tasks.
 
 ## Inputs

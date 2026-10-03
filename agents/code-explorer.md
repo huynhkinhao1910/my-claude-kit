@@ -7,6 +7,7 @@ model: sonnet
 
 # Code Explorer
 
+## Role
 You read so the main session doesn't have to. Return a map, not file dumps.
 
 ## Inputs

@@ -15,9 +15,9 @@ Bộ agent, skill, command, rules và hook cá nhân cho **Claude Code**, đư�
 2. [Dùng hằng ngày: gặp việc gì thì gọi gì](#2-dùng-hằng-ngày-gặp-việc-gì-thì-gọi-gì)
 3. [Pipeline `/feature`](#3-pipeline-feature)
 4. [Đường nhanh: `/quick`, `/debug`, `/code-review`](#4-đường-nhanh-quick-debug-code-review)
-5. [Danh mục command](#5-danh-mục-command-30)
+5. [Danh mục command](#5-danh-mục-command-31)
 6. [Danh mục agent](#6-danh-mục-agent-25)
-7. [Danh mục skill](#7-danh-mục-skill-42)
+7. [Danh mục skill](#7-danh-mục-skill-43)
 8. [Rules](#8-rules)
 9. [House style và API contract](#9-house-style-và-api-contract)
 10. [Scalability](#10-scalability)
@@ -140,6 +140,9 @@ rm -rf ~/.claude/hooks/my-claude-kit ~/.claude/rules/my-claude-kit
 | Dọn dead code sau khi ship                                                    | `/refactor-clean`                                                       | Xóa theo từng đợt đã duyệt, test xanh sau mỗi đợt                         |
 | Hết giờ, việc còn dở                                                          | `/save-session`, rồi mai `/resume-session`                              | Lưu vào `~/.claude/session-data/`                                         |
 | Quyết định kiến trúc ảnh hưởng nhiều module                                   | nhờ agent `architect`                                                   | Ghi ADR vào `docs/adr/`                                                   |
+| Trang hoặc API chậm, chưa rõ chậm ở đâu                                        | `/debug <trang/endpoint chậm>`                                          | Chia thời gian: frontend, DB, API ngoài, việc đồng bộ, CPU. Phần nào lớn nhất thì tối ưu phần đó |
+| Đã xác định DB là nút thắt, cần tối ưu có số đo trước/sau                     | agent `database-reviewer` mode `profile`                                | Đo → EXPLAIN → đề xuất → `implementer` sửa → đo lại + kiểm trên web |
+| Test luồng UI theo test case (click, nhập, kiểm network)                     | `/ui-test <slug>` hoặc `/ui-test <url>`                                 | Viết test case từ AC trong `spec.md` vào `test-cases.md`, duyệt, rồi chạy bằng claude-in-chrome |
 | Endpoint hoặc job sẽ chịu tải                                                 | nhắc tới "scale" hoặc "chịu tải", hay dùng agent `scalability-reviewer` | Skill `scalability`                                                       |
 | Xem Claude đã học được gì ở project này                                       | `/instinct-status`                                                      | Xem [mục 11](#11-continuous-learning)                                     |
 
@@ -152,10 +155,10 @@ Không cần gọi skill bằng tay. Claude tự nạp skill theo ngữ cảnh: 
 ```
 /feature order-refund "Cho phép khách hoàn tiền đơn trong 7 ngày"
 
- 1 Spec ──▶ Gate 1 ──▶ 2 Plan ──▶ Gate 2 ──▶ 3 Implement ──▶ 4 Verify ──▶ 5 Review ──▶ Gate 3 ──▶ 6 Ship ──▶ Final gate
- requirement-          code-explorer          test-writer →      /verify      reviewers theo         doc-writer
- analyst               + planner              implementer        (phải xanh)  loại file, chạy        + glab MR draft
-                                              (1 commit/task)                 song song
+ 1 Spec ──▶ Gate 1 ──▶ 2 Plan ──▶ Gate 2 ──▶ 3 Implement ──▶ 4 Verify ──▶ 4b UI test ──▶ 5 Review ──▶ Gate 3 ──▶ 6 Ship ──▶ Final gate
+ requirement-          code-explorer          test-writer →      /verify      /ui-test        reviewers theo         doc-writer
+ analyst               + planner              implementer        (phải xanh)  e2e-runner      loại file, chạy        + glab MR draft
+                                              (1 commit/task)                 (nếu có UI)     song song
 ```
 
 | Phase       | Command                  | Agent                                                   | File tạo ra                                                            | Cổng                                                          |
@@ -164,6 +167,7 @@ Không cần gọi skill bằng tay. Claude tự nạp skill theo ngữ cảnh: 
 | 2 Plan      | `/plan <slug>`           | code-explorer, planner                                  | `plan.md` (cách làm, data model, API contract, task T1..Tn gắn với AC) | **Gate 2:** "approve plan", sau đó tạo nhánh `feature/<slug>` |
 | 3 Implement | `/implement <slug>`      | test-writer → implementer, commit-message-writer        | test + code, mỗi task 1 commit                                         | dừng lại khi lệch plan                                        |
 | 4 Verify    | `/verify <slug>`         | build-error-resolver / implementer nếu đỏ               | —                                                                      | phải xanh                                                     |
+| 4b UI test  | `/ui-test <slug>`        | e2e-runner (run)                                        | `test-cases.md` (duyệt trước khi chạy), `ui-test-report.md`            | không có FAIL; chỉ bỏ qua khi không AC nào thấy được trên UI  |
 | 5 Review    | `/review <slug>`         | các reviewer theo loại file (bảng dưới) + spec-verifier | `review.md` (bảng finding + verdict)                                   | **Gate 3:** "fix all" / "fix #1,#3" / "approve"               |
 | 6 Ship      | `/ship <slug>`           | doc-writer                                              | `feature-doc.md` (tiếng Việt), `mr-description.md` (tiếng Anh)         | **Final gate:** "ship", sau đó push và mở MR draft            |
 
@@ -204,7 +208,12 @@ Mức độ theo `review-checklist`: **BLOCKER** (sai hành vi, mất dữ liệ
 
 ### `/debug <triệu chứng>`
 
-Làm theo skill `debugging`: tái hiện → đọc bằng chứng → thu hẹp → mỗi lần 1 giả thuyết → chứng minh. Sau đó **dừng lại, chưa sửa code**, và báo cáo:
+Làm theo skill `debugging`: tái hiện → đọc bằng chứng → thu hẹp → mỗi lần 1 giả thuyết → chứng minh. Sau đó **dừng lại, chưa sửa code**, và báo cáo.
+
+- **Lỗi UI:** `e2e-runner` viết 1 TC từ mô tả lỗi rồi chạy bằng claude-in-chrome. Bước fail, network và console là bằng chứng.
+- **Chậm:** đo trước theo `slow-triage.md` (frontend, DB, API ngoài, việc đồng bộ, CPU, chờ worker). DB chiếm từ 50% thì `database-reviewer` mode `profile` đo và đề xuất. Phần khác chuyển cho skill phụ trách.
+- **Sau khi sửa qua `/quick`:** đo lại để ra bảng trước/sau, hoặc chạy lại đúng TC đó. Không có số đo hoặc TC pass thì chưa tính là xong.
+
 
 ```
 Symptom:     POST /api/v1/orders trả 500 ~2% lúc cao điểm
@@ -222,7 +231,7 @@ Không truyền base thì review thay đổi chưa commit. Có base thì review 
 
 ---
 
-## 5. Danh mục command (30)
+## 5. Danh mục command (31)
 
 ### Pipeline
 
@@ -243,6 +252,7 @@ Không truyền base thì review thay đổi chưa commit. Có base thì review 
 | `/quick`          | `<việc>`                             | Sửa nhỏ, 1 cổng duyệt                        |
 | `/debug`          | `<triệu chứng \| lỗi \| request_id>` | Tìm nguyên nhân gốc, dừng lại báo cáo        |
 | `/code-review`    | `[base]`                             | Review local, chỉ đọc                        |
+| `/ui-test`        | `<slug \| URL> [TC-id] [--mutating]` | Viết test case UI, duyệt, chạy bằng claude-in-chrome, báo cáo theo TC |
 | `/build-fix`      | `[path \| lỗi]`                      | Sửa build/type/lint bằng resolver đúng stack |
 | `/refactor-clean` | `[path]`                             | Xóa dead code theo đợt an toàn               |
 | `/save-session`   | —                                    | Lưu trạng thái phiên làm việc                |
@@ -301,7 +311,7 @@ Cột **Ghi code**: ✍️ = được sửa code · 📄 = chỉ ghi tài liệu
 | laravel-reviewer      | opus   | Laravel theo house style: tầng, API format, exception, Sanctum, RabbitMQ, transaction, test PHPUnit. Vi phạm `[layers]`/`[api]` là **MAJOR** |
 | security-reviewer     | opus   | OWASP: IDOR, mass assignment, injection, XSS, secret, upload, SSRF, webhook, race trên tiền/tồn kho                                          |
 | scalability-reviewer  | opus   | Tải ở 10× và chạy nhiều node. Mỗi finding phải nêu mức tải sẽ vỡ và tài nguyên bị cạn                                                        |
-| database-reviewer     | sonnet | MySQL/InnoDB + Eloquent: index, query plan, N+1, migration bảng lớn, lock                                                                    |
+| database-reviewer     | sonnet | MySQL/InnoDB + Eloquent. `review`: index, query plan, N+1, migration bảng lớn, lock. `profile`: đo trang/API chậm, đề xuất fix, đo lại, kiểm web |
 | typescript-reviewer   | sonnet | TS/JS/NestJS/Node: type, async, boundary                                                                                                     |
 | vue-reviewer          | sonnet | Vue 3/Nuxt: Composition API, reactivity, Pinia/Router                                                                                        |
 | react-reviewer        | sonnet | React/Next: hook, render, server/client boundary, a11y                                                                                       |
@@ -318,11 +328,11 @@ Cột **Ghi code**: ✍️ = được sửa code · 📄 = chỉ ghi tài liệu
 | react-build-resolver | sonnet | ✍️        | Build React/Next (Vite, webpack, hydration)   |
 | go-build-resolver    | sonnet | ✍️        | `go build`/`go vet`/golangci-lint             |
 | refactor-cleaner     | sonnet | ✍️        | Xóa dead code, test xanh sau mỗi đợt          |
-| e2e-runner           | sonnet | ✍️ (test) | E2E Playwright, cách ly test flaky, thu trace |
+| e2e-runner           | sonnet | 📄        | Viết test case UI từ AC rồi chạy bằng claude-in-chrome (UI + network + console), báo cáo theo TC |
 
 ---
 
-## 7. Danh mục skill (42)
+## 7. Danh mục skill (43)
 
 Skill là kiến thức được nạp khi cần. Chỉ phần **description** (1-2 câu) luôn nằm trong context. Nội dung đầy đủ chỉ được đọc khi skill liên quan tới việc đang làm.
 
@@ -341,7 +351,7 @@ Skill là kiến thức được nạp khi cần. Chỉ phần **description** (
 | Skill                 | Nội dung                                                                                                                                                                              |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `api-design`          | **API contract:** project có sẵn thì phát hiện format và làm theo; project mới dùng `data` + `paging` + `meta`. Bảng mã lỗi, pagination, versioning, helper mẫu cho Laravel/NestJS/Go |
-| `mysql-patterns`      | Schema, index, transaction, replication, connection pool                                                                                                                              |
+| `mysql-patterns`      | Schema, index, transaction, replication, connection pool, quy trình tối ưu có đo (`references/profiling.md`)                                                                                                                              |
 | `redis-patterns`      | Cấu trúc dữ liệu, cache, lock, rate limit, pub/sub                                                                                                                                    |
 | `database-migrations` | Migration an toàn, zero-downtime                                                                                                                                                      |
 | `golang-patterns`     | Go idiomatic: error, interface, concurrency, package                                                                                                                                  |
@@ -364,6 +374,7 @@ Skill là kiến thức được nạp khi cần. Chỉ phần **description** (
 | `tdd-workflow`           | TDD chung, coverage 80%                                                                                                  |
 | `verification-loop`      | Kiểm tra 6 phase, báo cáo PASS/FAIL                                                                                      |
 | `e2e-testing`            | Playwright, Page Object, CI, test flaky                                                                                  |
+| `ui-test-cases`          | Viết test case UI từ AC, chạy từng bước bằng claude-in-chrome, kiểm UI + network + console, báo cáo theo TC              |
 | `continuous-learning-v2` | Hệ thống instinct tự học (xem [mục 11](#11-continuous-learning))                                                         |
 
 ### Frontend
@@ -516,6 +527,7 @@ my-claude-kit/
 ├── tests/             unittest: guard, inject, merge-settings, install, lint, targets
 ├── upstream/          bản gốc của các file dựa trên mã nguồn mở, để đối chiếu (không cài)
 ├── LICENSE            MIT, © 2026 huynhkinhao1910
+├── AGENTS.md          hướng dẫn cho agent làm việc trên chính kit này (CLAUDE.md trỏ tới nó)
 ├── AGENT_STANDARD.md  chuẩn viết agent/skill/command
 ├── lint.py            kiểm tra theo chuẩn
 ├── groups.txt         nhóm stack cho --only
@@ -548,7 +560,7 @@ python3 -m unittest discover -s tests      # toàn bộ test phải xanh
 ./install.sh --dry-run
 ```
 
-`lint.py` báo lỗi khi frontmatter YAML hỏng, tham chiếu tới skill hoặc agent không tồn tại, hay agent read-only có quyền ghi. Test `test_lint.py` chạy lint trên kit, nên lỗi này không lọt được vào commit.
+`lint.py` báo lỗi khi frontmatter YAML hỏng, tham chiếu tới skill hoặc agent không tồn tại, agent read-only có quyền ghi, agent thiếu hoặc sai thứ tự mục Role → Inputs → Process → Output → Never, hay SKILL.md dài quá 500 dòng. Test `test_lint.py` chạy lint trên kit, nên lỗi này không lọt được vào commit.
 
 ### Đối chiếu với bản gốc (`upstream/`)
 

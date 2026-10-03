@@ -9,7 +9,8 @@ description: Template and rules for a testable feature spec — user stories, Gh
 - Slug: kebab-case, ≤ 5 words. Folder: `docs/features/<slug>/`.
 - AC IDs `AC1..n` and edge-case IDs `EC1..n` are stable: never renumber after approval — append.
 - ACs are Given/When/Then, observable from outside (HTTP response, DB state, event/job, UI state) and automatable.
-- NFRs have numbers (p95 < 300 ms, 10k rows/import, 50 req/s).
+- UI ACs name what the user sees and what the network does ("the button is disabled and no POST /api/v1/cart is sent"), so that `/ui-test` can check them literally.
+- NFRs have numbers (p95 < 300 ms, 10k rows/import, 50 req/s). For list or detail endpoints, add a query budget ("≤ 5 queries per request") when the data grows.
 - Out of scope is mandatory. Unknowns → Open Questions; guesses → `[ASSUMPTION]`.
 - No implementation details (no new table/class names).
 

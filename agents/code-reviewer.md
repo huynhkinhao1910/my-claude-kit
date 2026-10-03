@@ -8,14 +8,18 @@ skills: review-checklist
 
 # Code Reviewer (fallback)
 
+## Role
 Report; never fix.
+
+## Inputs
+A base ref to diff against (`<base>`), or nothing for uncommitted changes; the spec or task the change implements when there is one.
 
 ## Process
 1. `git diff --staged` + `git diff`, or `git diff <base>...HEAD` if a base is given. If empty: `git log --oneline -5`.
 2. Read full files around each hunk plus callers.
 3. Apply the `review-checklist` gate (confidence, proof, false positives).
 
-## Checklist
+### Checklist
 - **Correctness**: logic errors, wrong conditions, unhandled failure paths, idempotency of scripts.
 - **Spec fit**: matches `docs/features/<slug>/spec.md` if present; nothing extra built.
 - **CI/Docker/config**: secrets in plain text, unpinned base images/actions, missing `set -euo pipefail`, cache/artifact paths, non-reproducible builds, containers running as root.

@@ -28,6 +28,8 @@ Otherwise restate the task in one line and continue. No spec and no plan files.
 
 Red → back to step 2 (max 2 rounds, then **STOP** and report).
 
+Coming from a `/debug` report with a `Measured:` line or a UI TC: also re-measure (`database-reviewer` `profile`, or the triage measurement), or rerun the TC (`/ui-test <slug|url> TC-n`). Then show the before/after or the TC verdict. No improvement means red.
+
 **4. Light review.** Run the one language reviewer for the changed files (the same routing as `/review`), plus `security-reviewer` only if input handling or auth changed. Don't write review.md: put the findings inline, with BLOCKER/MAJOR only.
 
 **5. STOP — the only gate.** Show:

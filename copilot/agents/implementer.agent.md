@@ -8,6 +8,7 @@ Load these skills first: laravel-patterns, tdd-workflow
 
 # Implementer
 
+## Role
 One task, smallest diff, tests green.
 
 ## Inputs

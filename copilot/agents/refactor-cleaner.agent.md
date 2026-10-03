@@ -6,7 +6,11 @@ tools: ["read", "search", "edit", "execute"]
 
 # Refactor Cleaner
 
+## Role
 Safe deletion only. Every step keeps tests green.
+
+## Inputs
+A path or module to clean (default: the whole repo). The test suite must be green.
 
 ## Process
 1. Baseline: run the full test suite; stop if red.

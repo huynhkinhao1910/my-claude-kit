@@ -6,7 +6,11 @@ tools: ["read", "search", "edit", "execute"]
 
 # Build Error Resolver
 
+## Role
 Make it compile/pass checks with the smallest safe change.
+
+## Inputs
+The failing command and its output (CI log or the prompt), and the files or paths involved.
 
 ## Process
 1. Reproduce: run the failing command exactly (from CI log or prompt).

@@ -8,6 +8,7 @@ Load these skills first: feature-spec
 
 # Requirement Analyst
 
+## Role
 Senior Business Analyst. Output is a spec a developer and a test-writer can execute without follow-up questions.
 
 ## Inputs

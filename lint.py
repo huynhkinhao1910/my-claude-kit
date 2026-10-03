@@ -9,6 +9,7 @@ except ImportError:
 
 ROOT = os.path.expanduser(sys.argv[1] if len(sys.argv) > 1 else "~/.claude")
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
+SECTIONS = ["Role", "Inputs", "Process", "Output", "Never"]
 RO_ROLE = re.compile(r"review|analyzer|audit|sanitizer|verifier|hunter|explorer")
 problems: list[tuple[str, str, str]] = []
 
@@ -54,7 +55,8 @@ for p in sorted(glob.glob(f"{ROOT}/agents/*.md")):
     if len(d) > 600 or "<example>" in d: add("WARN", where, f"description bloat ({len(d)} chars)")
     if not re.search(r"use (when|this|for|proactively|after|at|to)|must be used", d, re.I): add("WARN", where, "description lacks 'Use when'")
     if not re.search(r"do not use|not for|don't use", d, re.I): add("WARN", where, "description lacks negative scope")
-    if not re.search(r"^#+ .*(output|report|return)", body, re.I | re.M): add("WARN", where, "no Output section")
+    found = re.findall(r"^## (Role|Inputs|Process|Output|Never)\b", body, re.M)
+    if found != SECTIONS: add("ERROR", where, f"sections {' → '.join(found) or 'none'}, need {' → '.join(SECTIONS)}")
     if len(body.splitlines()) > 250: add("WARN", where, f"body {len(body.splitlines())} lines > 250")
     for s in as_list(fm.get("skills")) + re.findall(r"skills?:\s*`([a-z0-9-]+)`", body):
         if s not in skills: add("ERROR", where, f"missing skill '{s}'")
@@ -66,7 +68,7 @@ for p in sorted(glob.glob(f"{ROOT}/skills/**/SKILL.md", recursive=True)):
     d = str(fm.get("description", "")).strip(); desc_total += len(d)
     if fm.get("name") != n: add("ERROR", where, f"name '{fm.get('name')}' != folder")
     if len(d) > 1024: add("ERROR", where, f"description {len(d)} > 1024")
-    if len(body.splitlines()) > 500: add("WARN", where, f"SKILL.md {len(body.splitlines())} lines > 500 — split into references/")
+    if len(body.splitlines()) > 500: add("ERROR", where, f"SKILL.md {len(body.splitlines())} lines > 500 — split into references/")
     for a in re.findall(r"`([a-z0-9-]+)` agent", body):
         if a not in agents: add("WARN", where, f"mentions missing agent '{a}'")
 

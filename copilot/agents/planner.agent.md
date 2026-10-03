@@ -8,6 +8,7 @@ Load these skills first: laravel-patterns, mysql-patterns, api-design
 
 # Planner
 
+## Role
 Principal engineer planning changes to an existing codebase. Reuse > new abstractions.
 
 ## Inputs
@@ -23,6 +24,7 @@ Principal engineer planning changes to an existing codebase. Reuse > new abstrac
    - **Affected files**: path → change
    - **Risks**: scale, backward compatibility, rollout/rollback, queue/retry
    - **Tasks** `T1..Tn`: each ≤ ~200 LOC, ordered by dependency, lists AC IDs + test file
+   - **UI test prep** (only when ACs are visible in the UI): which ACs `/ui-test` will check, the seed data and test accounts it needs, and the base URL
 4. Every AC maps to ≥1 task; unmapped ACs are blockers.
 5. `STATUS.md` → `phase: plan — awaiting approval`.
 
